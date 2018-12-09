@@ -1,0 +1,24 @@
+plugins {
+    id 'java'
+}
+
+group 'apache.ignite.futures'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+def igniteVersion = '2.7.0-SNAPSHOT'
+
+dependencies {
+    compile group: 'org.apache.ignite', name: 'ignite-core', version: igniteVersion
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+
+    testRuntime group: 'org.apache.ignite', name: 'ignite-spring', version: igniteVersion
+    testRuntime group: 'org.apache.ignite', name: 'ignite-rest-http', version: igniteVersion
+}
