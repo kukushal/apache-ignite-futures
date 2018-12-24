@@ -17,11 +17,6 @@ public class CalculatorService implements Calculator, Service {
      */
     public static final int OPERATION_DURATION = 2000;
 
-    /**
-     * Max time in milliseconds to wait for the result delivery acknowledgement.
-     */
-    private static final int RESULT_DELIVERY_TIMEOUT = 2000;
-
     /** Ignite. */
     @IgniteInstanceResource
     private Ignite ignite;
@@ -40,14 +35,14 @@ public class CalculatorService implements Calculator, Service {
             // The operation takes OPERATION_DURATION milliseconds
             try {
                 for (int i = 0; i < 10 && !isCancelled.get(); i++)
-                    Thread.sleep(OPERATION_DURATION);
+                    Thread.sleep(OPERATION_DURATION/10);
             }
             catch (InterruptedException ignored) {
             }
 
             if (!isCancelled.get()) {
                 try {
-                    fut.resolve(n1 + n2, RESULT_DELIVERY_TIMEOUT);
+                    fut.resolve(n1 + n2);
                 }
                 catch (Exception e) {
                     ignite.log().error(e.toString());
