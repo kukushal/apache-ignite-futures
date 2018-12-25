@@ -16,9 +16,11 @@ import org.apache.ignite.lang.IgniteFutureTimeoutException;
 import org.apache.ignite.lang.IgniteInClosure;
 import org.apache.ignite.lang.IgniteRunnable;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -97,6 +99,11 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
     private transient IgniteBiPredicate<UUID, Object> cancelReqLsnr;
 
     /**
+     * Client-side listeners list.
+     */
+    private transient Collection<IgniteInClosure<? super TopicMessageFuture<V>>> lsnrs;
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -151,6 +158,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
         cancelTimeout = reader.readLong("cancelTimeout");
 
         srvRspQueue = createServerResponseQueue();
+        lsnrs = new ConcurrentLinkedQueue<>();
     }
 
     /**
@@ -266,7 +274,16 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      */
     @Override
     public void listen(IgniteInClosure<? super IgniteFuture<V>> lsnr) {
+        if (lsnr == null)
+            throw new NullPointerException("lsnr");
 
+        if (lsnrs == null)
+            throw new IllegalStateException("Trying to call client-side method on the server side");
+
+        if (state != State.ACTIVE)
+            lsnr.apply(this);
+        else
+            lsnrs.add(lsnr);
     }
 
     /**
@@ -274,7 +291,13 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      */
     @Override
     public void listenAsync(IgniteInClosure<? super IgniteFuture<V>> lsnr, Executor exec) {
+        if (lsnr == null)
+            throw new NullPointerException("lsnr");
 
+        if (exec == null)
+            throw new NullPointerException("exec");
+
+        listen(new AsyncListener(lsnr, exec));
     }
 
     /**
@@ -282,7 +305,10 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      */
     @Override
     public <T> IgniteFuture<T> chain(IgniteClosure<? super IgniteFuture<V>, T> doneCb) {
-        return null;
+        if (doneCb == null)
+            throw new NullPointerException("doneCb");
+
+        return new ChainedFuture<>(this, doneCb, null);
     }
 
     /**
@@ -290,7 +316,13 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      */
     @Override
     public <T> IgniteFuture<T> chainAsync(IgniteClosure<? super IgniteFuture<V>, T> doneCb, Executor exec) {
-        return null;
+        if (doneCb == null)
+            throw new NullPointerException("doneCb");
+
+        if (exec == null)
+            throw new NullPointerException("exec");
+
+        return new ChainedFuture<>(this, doneCb, exec);
     }
 
     /**
@@ -416,6 +448,17 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
                     catch (InterruptedException ignored) {
                     }
 
+                    lsnrs.forEach(l -> {
+                        try {
+                            l.apply(this);
+                        }
+                        catch (Exception ex) {
+                            ignite.log().error("Failed to notify listener", ex);
+                        }
+                    });
+
+                    lsnrs.clear();
+
                     return false; // stop listening
                 }
 
@@ -503,6 +546,52 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
         /** @return Cancellation failure or {@code null} is cancellation succeeded. */
         String failure() {
             return failure;
+        }
+    }
+
+    /**
+     * {@link TopicMessageFuture} client-side listener to call with the specified {@link Executor}.
+     */
+    private final class AsyncListener implements IgniteInClosure<IgniteFuture<V>> {
+        /** Listener. */
+        private final IgniteInClosure<? super IgniteFuture<V>> lsnr;
+
+        /** Executor. */
+        private final Executor exec;
+
+        /** Constructor. */
+        AsyncListener(IgniteInClosure<? super IgniteFuture<V>> lsnr, Executor exec) {
+            this.lsnr = lsnr;
+            this.exec = exec;
+        }
+
+        /** {@inheritDoc} */
+        @Override public void apply(IgniteFuture<V> fut) {
+            exec.execute(() -> lsnr.apply(fut));
+        }
+    }
+
+    /**
+     * The class is used to implement {@link TopicMessageFuture} chaining.
+     */
+    private static class ChainedFuture<V, T> extends TopicMessageFuture<T> {
+        /** Target future. */
+        private TopicMessageFuture<V> fut;
+
+        /** Done callback. */
+        private IgniteClosure<? super IgniteFuture<V>, T> doneCb;
+
+        /** Constructor. */
+        ChainedFuture(
+            TopicMessageFuture<V> fut,
+            IgniteClosure<? super IgniteFuture<V>, T> doneCb,
+            Executor exec
+        ) {
+            this.fut = fut;
+            this.doneCb = doneCb;
+
+            // TODO: to be completed.
+            //fut.listen(fut -> )
         }
     }
 }

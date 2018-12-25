@@ -4,11 +4,14 @@ import apache.ignite.futures.testobjects.Calculator;
 import apache.ignite.futures.testobjects.CalculatorService;
 import apache.ignite.futures.testobjects.Cluster;
 import org.apache.ignite.Ignite;
+import org.apache.ignite.lang.IgniteClosure;
 import org.apache.ignite.lang.IgniteFuture;
 import org.apache.ignite.lang.IgniteFutureCancelledException;
 import org.apache.ignite.lang.IgniteFutureTimeoutException;
+import org.apache.ignite.lang.IgniteInClosure;
 import org.junit.Test;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -101,6 +104,48 @@ public class TopicMessageFutureTest {
             });
 
             calcFut.get();
+        }
+    }
+
+    /**
+     * {@link TopicMessageFuture#listen(IgniteInClosure)} test.
+     */
+    @Test
+    public void testListen() throws InterruptedException {
+        try (Cluster cluster = new Cluster()) {
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+
+            CountDownLatch latch = new CountDownLatch(1);
+
+
+            calcFut.listen(fut -> {
+                assertTrue(fut.isDone());
+
+                int actual = fut.get();
+
+                assertEquals(1 + 2, actual);
+
+                latch.countDown();
+            });
+
+            latch.await(CalculatorService.OPERATION_DURATION * 2, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * {@link TopicMessageFuture#chain(IgniteClosure)} test.
+     */
+    @Test
+    public void testChain() {
+        try (Cluster cluster = new Cluster()) {
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+
+            IgniteFuture<String> chainedFut = calcFut.chain(fut -> fut.get().toString());
+
+            String actual = chainedFut.get();
+
+            assertEquals(Integer.valueOf(1 + 2).toString(), actual);
+            assertTrue(chainedFut.isDone());
         }
     }
 
