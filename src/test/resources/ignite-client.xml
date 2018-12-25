@@ -7,8 +7,9 @@
         http://www.springframework.org/schema/beans/spring-beans.xsd">
     <bean id="ignite.cfg" class="org.apache.ignite.configuration.IgniteConfiguration">
         <property name="clientMode" value="true"/>
-        <property name="igniteInstanceName" value="sbt-cashflow-grid-examples-async-client"/>
-        <property name="workDirectory" value="#{systemProperties['java.io.tmpdir']}/sbt-cashflow-grid-examples-async-client"/>
+        <property name="igniteInstanceName" value="apache-ignite-futures-client"/>
+        <property name="workDirectory" value="#{systemProperties['java.io.tmpdir']}apache-ignite-futures-client"/>
+        <property name="localHost" value="127.0.0.1" />
 
         <property name="discoverySpi">
             <bean class="org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi">

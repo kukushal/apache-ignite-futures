@@ -77,6 +77,7 @@ public class TopicMessageFutureTest {
 
             assertTrue(isCancelled);
             assertTrue(calcFut.isCancelled());
+            assertTrue(serviceProxy(cluster.client()).wasCancelled());
         }
     }
 
@@ -104,9 +105,16 @@ public class TopicMessageFutureTest {
     }
 
     /**
-     * @return {@link Calculator} service proxy.
+     * @return {@link IgniteFuture} from {@link Calculator#sum(int, int)}.
      */
     private static IgniteFuture<Integer> asyncSum(Ignite ignite, int a, int b) {
-        return ignite.services().serviceProxy("Calculator", Calculator.class, false).sum(a, b).setIgnite(ignite);
+        return serviceProxy(ignite).sum(a, b).setIgnite(ignite);
+    }
+
+    /**
+     * @return {@link Calculator} non-sticky service proxy.
+     */
+    private static Calculator serviceProxy(Ignite ignite) {
+        return ignite.services().serviceProxy("Calculator", Calculator.class, false);
     }
 }

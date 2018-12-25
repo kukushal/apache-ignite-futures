@@ -3,33 +3,37 @@ package apache.ignite.futures.testobjects;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.Ignition;
 
-import java.util.Arrays;
+import java.util.stream.Stream;
 
 /**
  * Ignite cluster consisting of one server and one client.
  */
 public class Cluster implements AutoCloseable {
-    private final Ignite server;
+    /** Server. */
+    private final Ignite srv;
+
+    /** Client. */
     private final Ignite client;
 
     /**
      * Constructor: start the server and client.
      */
     public Cluster() {
-        Ignite[] futs = Arrays.asList("ignite-server.xml", "ignite-client.xml")
-            .parallelStream()
+        Ignite[] futs = Stream.of("ignite-server.xml", "ignite-client.xml")
             .map(Ignition::start)
             .toArray(Ignite[]::new);
 
-        server = futs[0];
+        srv = futs[0];
         client = futs[1];
+
+        assert(client.cluster().active());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override public void close() {
-        Arrays.asList(client, server).parallelStream().forEach(Ignite::close);
+        Stream.of(client, srv).forEach(Ignite::close);
     }
 
     /**

@@ -12,7 +12,7 @@ repositories {
     mavenLocal()
 }
 
-def igniteVersion = '2.7.0-SNAPSHOT'
+def igniteVersion = '2.6.0'
 
 dependencies {
     compile group: 'org.apache.ignite', name: 'ignite-core', version: igniteVersion

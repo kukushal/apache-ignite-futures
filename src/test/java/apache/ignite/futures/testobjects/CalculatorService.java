@@ -21,26 +21,29 @@ public class CalculatorService implements Calculator, Service {
     @IgniteInstanceResource
     private Ignite ignite;
 
+    /** Indicates if the last operation was cancelled. */
+    private AtomicBoolean wasCancelled = new AtomicBoolean(false);
+
     /**
      * {@inheritDoc}
      */
     @Override
     public TopicMessageFuture<Integer> sum(int n1, int n2) {
-        AtomicBoolean isCancelled = new AtomicBoolean(false);
+        wasCancelled.set(false);
         TopicMessageFuture<Integer> fut = new TopicMessageFuture<Integer>()
-            .setCancellation(() -> isCancelled.set(true))
+            .setCancellation(() -> wasCancelled.set(true), 2000)
             .setIgnite(ignite);
 
         ignite.compute().runAsync(() -> {
             // The operation takes OPERATION_DURATION milliseconds
             try {
-                for (int i = 0; i < 10 && !isCancelled.get(); i++)
-                    Thread.sleep(OPERATION_DURATION/10);
+                for (int i = 0; i < 10 && !wasCancelled.get(); i++)
+                    Thread.sleep(OPERATION_DURATION / 10);
             }
             catch (InterruptedException ignored) {
             }
 
-            if (!isCancelled.get()) {
+            if (!wasCancelled.get()) {
                 try {
                     fut.resolve(n1 + n2);
                 }
@@ -51,6 +54,14 @@ public class CalculatorService implements Calculator, Service {
         });
 
         return fut;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean wasCancelled() {
+        return wasCancelled.get();
     }
 
     /**
