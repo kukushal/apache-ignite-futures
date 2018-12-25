@@ -572,26 +572,66 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
     }
 
     /**
-     * The class is used to implement {@link TopicMessageFuture} chaining.
+     * Simple non-distributed {@link IgniteFuture} implementation returned to the client as a result of {@link
+     * TopicMessageFuture} chaining.
      */
-    private static class ChainedFuture<V, T> extends TopicMessageFuture<T> {
-        /** Target future. */
-        private TopicMessageFuture<V> fut;
-
-        /** Done callback. */
-        private IgniteClosure<? super IgniteFuture<V>, T> doneCb;
-
+    private static class ChainedFuture<V, T> implements IgniteFuture<T> {
         /** Constructor. */
-        ChainedFuture(
-            TopicMessageFuture<V> fut,
-            IgniteClosure<? super IgniteFuture<V>, T> doneCb,
-            Executor exec
-        ) {
-            this.fut = fut;
-            this.doneCb = doneCb;
+        ChainedFuture(IgniteFuture<V> target, IgniteClosure<? super IgniteFuture<V>, T> doneCb, Executor exec) {
+            IgniteInClosure<? super IgniteFuture<T>> lsnr = ignored -> doneCb.apply();
 
-            // TODO: to be completed.
-            //fut.listen(fut -> )
+            target.listen();
+        }
+
+        /** {@inheritDoc} */
+        @Override public T get() throws IgniteException {
+            return null;
+        }
+
+        /** {@inheritDoc} */
+        @Override public T get(long timeout) throws IgniteException {
+            return get(timeout, TimeUnit.MICROSECONDS);
+        }
+
+        /** {@inheritDoc} */
+        @Override public T get(long timeout, TimeUnit unit) throws IgniteException {
+            return null;
+        }
+
+        /** {@inheritDoc} */
+        @Override public boolean cancel() throws IgniteException {
+            return false;
+        }
+
+        /** {@inheritDoc} */
+        @Override public boolean isCancelled() {
+            return false;
+        }
+
+        /** {@inheritDoc} */
+        @Override public boolean isDone() {
+            return false;
+        }
+
+        /** {@inheritDoc} */
+        @Override public void listen(IgniteInClosure<? super IgniteFuture<T>> lsnr) {
+
+        }
+
+        /** {@inheritDoc} */
+        @Override public void listenAsync(IgniteInClosure<? super IgniteFuture<T>> lsnr, Executor exec) {
+
+        }
+
+        /** {@inheritDoc} */
+        @Override public <T1> IgniteFuture<T1> chain(IgniteClosure<? super IgniteFuture<T>, T1> doneCb) {
+            return null;
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public <T1> IgniteFuture<T1> chainAsync(IgniteClosure<? super IgniteFuture<T>, T1> doneCb, Executor exec) {
+            return null;
         }
     }
 }
