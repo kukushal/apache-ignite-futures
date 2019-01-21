@@ -578,9 +578,10 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
     private static class ChainedFuture<V, T> implements IgniteFuture<T> {
         /** Constructor. */
         ChainedFuture(IgniteFuture<V> target, IgniteClosure<? super IgniteFuture<V>, T> doneCb, Executor exec) {
-            IgniteInClosure<? super IgniteFuture<T>> lsnr = ignored -> doneCb.apply();
-
-            target.listen();
+            // TODO:
+//            IgniteInClosure<? super IgniteFuture<T>> lsnr = ignored -> doneCb.apply();
+//
+//            target.listen();
         }
 
         /** {@inheritDoc} */
