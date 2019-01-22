@@ -2,7 +2,7 @@
 {
     public interface ICalculator
     {
-        TopicMessageFuture<int> sum(int n1, int n2);
+        TopicMessageFuture sum(int n1, int n2);
 
         bool wasCancelled();
     }

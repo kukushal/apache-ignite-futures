@@ -24,18 +24,5 @@
                 </property>
             </bean>
         </property>
-
-        <property name="binaryConfiguration">
-            <bean class="org.apache.ignite.configuration.BinaryConfiguration">
-                <property name="compactFooter" value="true" />
-                <property name="typeConfigurations">
-                    <list>
-                        <bean class="org.apache.ignite.binary.BinaryTypeConfiguration">
-                            <property name="typeName" value="apache.ignite.futures.TopicMessageFuture"/>
-                        </bean>
-                    </list>
-                </property>
-            </bean>
-        </property>
     </bean>
 </beans>

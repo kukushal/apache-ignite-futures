@@ -1,8 +1,8 @@
 ﻿namespace Apache.Ignite.Futures
 {
-    public class TopicMessageFuture<V>
+    public class TopicMessageFuture
     {
-        //private string topic;
+        private string topic;
 
         //private V res;
     }

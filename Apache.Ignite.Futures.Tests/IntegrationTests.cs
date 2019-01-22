@@ -1,5 +1,6 @@
 ﻿using Apache.Ignite.Core;
 using Apache.Ignite.Core.Binary;
+using Apache.Ignite.Core.Deployment;
 using Apache.Ignite.Futures.Tests.TestObjects;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
@@ -20,10 +21,12 @@ namespace Apache.Ignite.Futures.Tests
             {
                 SpringConfigUrl = "ignite-client.xml",
                 JvmClasspath = svcClsPath,
+                PeerAssemblyLoadingMode = PeerAssemblyLoadingMode.CurrentAppDomain,
                 JvmOptions = new List<string>
                 {
                     "-Djava.net.preferIPv4Stack=true",
-                    "-Djava.util.logging.config.file=" + Paths.LogPropsPath
+                    "-Djava.util.logging.config.file=" + Paths.LogPropsPath,
+                    //"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006"
                 },
                 BinaryConfiguration = new BinaryConfiguration()
                 {
@@ -40,11 +43,11 @@ namespace Apache.Ignite.Futures.Tests
 
                 using (var ignite = Ignition.Start(igniteClientCfg))
                 {
-                    var calc = ignite.GetServices().GetServiceProxy<ICalculator>("Calculator", true);
+                    var calc = new ServiceLocator(ignite).GetService<ICalculator>("Calculator");
 
                     var fut = calc.sum(1, 2);
 
-                    System.Console.WriteLine($">>> FUTURE: {fut}");
+                    System.Diagnostics.Debug.WriteLine($">>> FUTURE: {fut}");
                 }
             }
         }

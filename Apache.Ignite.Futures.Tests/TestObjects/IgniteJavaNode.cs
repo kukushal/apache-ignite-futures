@@ -97,7 +97,10 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
             string clsPath = string.Join(Path.PathSeparator.ToString(), Paths.IgniteLibs, userLibs ?? string.Empty);
 
             var javaArgs = $"-cp {clsPath} -Djava.util.logging.config.file={Paths.LogPropsPath} " +
-                $"-Djava.net.preferIPv4Stack=true org.apache.ignite.startup.cmdline.CommandLineStartup {cfgPath}";
+                "-Djava.net.preferIPv4Stack=true " +
+                "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 " +
+                "org.apache.ignite.startup.cmdline.CommandLineStartup " +
+                cfgPath;
 
             var processInfo = new ProcessStartInfo("java.exe", javaArgs)
             {

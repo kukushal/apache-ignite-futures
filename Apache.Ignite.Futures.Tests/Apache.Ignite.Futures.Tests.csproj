@@ -40,14 +40,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Apache.Ignite, Version=2.5.3.32797, Culture=neutral, PublicKeyToken=6e15f083b9518446, processorArchitecture=MSIL">
-      <HintPath>..\packages\Apache.Ignite.2.5.3\lib\net40\Apache.Ignite.exe</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Apache.Ignite.Core, Version=2.5.3.32797, Culture=neutral, PublicKeyToken=a487a7ff0b2aaa4a, processorArchitecture=MSIL">
-      <HintPath>..\packages\Apache.Ignite.2.5.3\lib\net40\Apache.Ignite.Core.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Microsoft.VisualStudio.TestPlatform.TestFramework, Version=14.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\MSTest.TestFramework.1.3.2\lib\net45\Microsoft.VisualStudio.TestPlatform.TestFramework.dll</HintPath>
       <Private>True</Private>
@@ -81,6 +73,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\incubator-ignite\modules\platforms\dotnet\Apache.Ignite.Core\Apache.Ignite.Core.csproj">
+      <Project>{4cd2f726-7e2b-46c4-a5ba-057bb82eecb6}</Project>
+      <Name>Apache.Ignite.Core</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Apache.Ignite.Futures\Apache.Ignite.Futures.csproj">
       <Project>{5932D586-CC08-44FD-999F-B6C297BF0454}</Project>
       <Name>Apache.Ignite.Futures</Name>
@@ -95,6 +91,7 @@
     <Content Include="..\src\test\resources\ignite-server.xml">
       <Link>ignite-server.xml</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </Content>
   </ItemGroup>
   <Choose>
@@ -127,8 +124,7 @@
   <Import Project="..\packages\MSTest.TestAdapter.1.3.2\build\net45\MSTest.TestAdapter.targets" Condition="Exists('..\packages\MSTest.TestAdapter.1.3.2\build\net45\MSTest.TestAdapter.targets')" />
   <PropertyGroup>
     <PostBuildEvent>
-if not exist "$(TargetDir)libs" md "$(TargetDir)libs"
-xcopy /s /y "$(SolutionDir)packages\Apache.Ignite.2.5.3\libs\*.*" "$(TargetDir)libs"</PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
   <Import Project="..\packages\MSTest.TestAdapter.1.3.2\build\net45\MSTest.TestAdapter.targets" Condition="Exists('..\packages\MSTest.TestAdapter.1.3.2\build\net45\MSTest.TestAdapter.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
