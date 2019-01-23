@@ -2,8 +2,6 @@
 {
     public class TopicMessageFuture
     {
-        private string topic;
-
-        //private V res;
+        public string Topic { get; set; }
     }
 }
