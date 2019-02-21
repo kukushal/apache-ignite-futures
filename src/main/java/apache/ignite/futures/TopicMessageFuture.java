@@ -25,9 +25,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Apache Ignite implementation of {@link IgniteFuture} based on
+ * {@link IgniteFuture} implementation based on
  * <a href="https://apacheignite.readme.io/docs/messaging">Ignite Messaging</a>.
- * <p><p>
+ * <p>
  * The future consists of separate client and server side implementations with separate APIs:
  * <ul>
  * <li>The server creates the future and returns it to the client.</li>
@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
  * </li>
  * </ul>
  * The client and server sides of {@link TopicMessageFuture} communicate using Ignite topic-based messages.
- * <p><p>
+ * <p>
  * Async operations returning instances of {@link TopicMessageFuture} are <b>NOT fault-tolerant</b>:
  * <ul>
  * <li>
@@ -55,6 +55,7 @@ import java.util.concurrent.TimeUnit;
  * Ignite client that called an async operation and then failed cannot resume listening for the operation result.
  * </li>
  * </ul>
+ * {@link TopicMessageFuture} <b>client and server must be in separate Ignite nodes</b>.
  */
 public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
     /**
@@ -327,6 +328,9 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
 
     /**
      * SERVER-SIDE API: set result of the async operation.
+     *
+     * @param res Async operation result.
+     * @return This {@link TopicMessageFuture} in a {@link State#DONE} state.
      */
     public TopicMessageFuture<V> resolve(V res) {
         // See createServerResponseQueue() method documentation for the implementation details.
@@ -353,6 +357,10 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
 
     /**
      * SERVER-SIDE API: Set cancellation routine or {@code null} if cancellation is not applicable.
+     *
+     * @param cancellation Cancellation routine.
+     * @param cancelTimeout Cancellation timeout.
+     * @return This {@link TopicMessageFuture}.
      */
     public TopicMessageFuture<V> setCancellation(IgniteRunnable cancellation, long cancelTimeout) {
         if (cancellation != null && cancelTimeout <= 0)
@@ -366,7 +374,11 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
 
     /**
      * Explicitly set {@link Ignite} node for this {@link TopicMessageFuture}. The first Ignite node started on the
-     * server is used if Ignite is not explicitly set.
+     * server is used if Ignite is not explicitly set. This method is needed only in multiple Ignite nodes per JVM
+     * environments (which are normally developer test environments).
+     *
+     * @param ignite Ignite node.
+     * @return This {@link TopicMessageFuture}.
      */
     public TopicMessageFuture<V> setIgnite(Ignite ignite) {
         if (ignite == null)

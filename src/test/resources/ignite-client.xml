@@ -24,5 +24,11 @@
                 </property>
             </bean>
         </property>
+
+        <property name="binaryConfiguration">
+            <bean class="org.apache.ignite.configuration.BinaryConfiguration">
+                <property name="compactFooter" value="true" />
+            </bean>
+        </property>
     </bean>
 </beans>
