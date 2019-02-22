@@ -26,7 +26,7 @@ public class TopicMessageFutureTest {
      * Calling {@link TopicMessageFuture#get()} before the operation is complete.
      */
     @Test
-    public void testGetBeforeOperationCompletes() {
+    public void getResultBeforeOperationCompletes() {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
 
@@ -41,7 +41,7 @@ public class TopicMessageFutureTest {
      * Calling {@link TopicMessageFuture#get()} after the operation is complete.
      */
     @Test
-    public void testGetAfterOperationCompletes() throws Exception {
+    public void getResultAfterOperationCompletes() throws Exception {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
 
@@ -58,7 +58,7 @@ public class TopicMessageFutureTest {
      * {@link TopicMessageFuture#get(long, TimeUnit)} test.
      */
     @Test(expected = IgniteFutureTimeoutException.class)
-    public void testGetTimeout() {
+    public void getResultTimesOut() {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
 
@@ -72,7 +72,7 @@ public class TopicMessageFutureTest {
      * {@link TopicMessageFuture#cancel()} test.
      */
     @Test
-    public void testCancel() {
+    public void cancelOperationFromSameClient() {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
 

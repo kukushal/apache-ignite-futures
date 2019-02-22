@@ -17,9 +17,11 @@ import org.apache.ignite.lang.IgniteInClosure;
 import org.apache.ignite.lang.IgniteRunnable;
 
 import java.util.Collection;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -57,7 +59,7 @@ import java.util.concurrent.TimeUnit;
  * </ul>
  * {@link TopicMessageFuture} <b>client and server must be in separate Ignite nodes</b>.
  */
-public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
+public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
     /**
      * Unique topic name generated on the server to use for the client-server communication.
      */
@@ -71,7 +73,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
     /**
      * The async operation's result if applicable.
      */
-    private V res;
+    private T res;
 
     /**
      * Server-side cancellation routine or {@code null} if cancellation is not applicable.
@@ -102,7 +104,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
     /**
      * Client-side listeners list.
      */
-    private transient Collection<IgniteInClosure<? super TopicMessageFuture<V>>> lsnrs;
+    private transient Collection<IgniteInClosure<? super TopicMessageFuture<T>>> lsnrs;
 
     /**
      * {@inheritDoc}
@@ -166,7 +168,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * {@inheritDoc}
      */
     @Override
-    public V get() throws IgniteException {
+    public T get() throws IgniteException {
         if (srvRspQueue == null)
             throw new IllegalStateException("Trying to call client-side method on the server side");
 
@@ -186,7 +188,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * {@inheritDoc}
      */
     @Override
-    public V get(long timeout) throws IgniteException {
+    public T get(long timeout) throws IgniteException {
         return get(timeout, TimeUnit.MICROSECONDS);
     }
 
@@ -194,7 +196,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * {@inheritDoc}
      */
     @Override
-    public V get(long timeout, TimeUnit unit) throws IgniteException {
+    public T get(long timeout, TimeUnit unit) throws IgniteException {
         if (srvRspQueue == null)
             throw new IllegalStateException("Trying to call client-side method on the server side");
 
@@ -274,9 +276,8 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * {@inheritDoc}
      */
     @Override
-    public void listen(IgniteInClosure<? super IgniteFuture<V>> lsnr) {
-        if (lsnr == null)
-            throw new NullPointerException("lsnr");
+    public void listen(IgniteInClosure<? super IgniteFuture<T>> lsnr) {
+        Objects.requireNonNull(lsnr);
 
         if (lsnrs == null)
             throw new IllegalStateException("Trying to call client-side method on the server side");
@@ -291,12 +292,9 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * {@inheritDoc}
      */
     @Override
-    public void listenAsync(IgniteInClosure<? super IgniteFuture<V>> lsnr, Executor exec) {
-        if (lsnr == null)
-            throw new NullPointerException("lsnr");
-
-        if (exec == null)
-            throw new NullPointerException("exec");
+    public void listenAsync(IgniteInClosure<? super IgniteFuture<T>> lsnr, Executor exec) {
+        Objects.requireNonNull(lsnr);
+        Objects.requireNonNull(exec);
 
         listen(new AsyncListener(lsnr, exec));
     }
@@ -305,9 +303,8 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * {@inheritDoc}
      */
     @Override
-    public <T> IgniteFuture<T> chain(IgniteClosure<? super IgniteFuture<V>, T> doneCb) {
-        if (doneCb == null)
-            throw new NullPointerException("doneCb");
+    public <U> IgniteFuture<U> chain(IgniteClosure<? super IgniteFuture<T>, U> doneCb) {
+        Objects.requireNonNull(doneCb);
 
         return new ChainedFuture<>(this, doneCb, null);
     }
@@ -316,12 +313,9 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * {@inheritDoc}
      */
     @Override
-    public <T> IgniteFuture<T> chainAsync(IgniteClosure<? super IgniteFuture<V>, T> doneCb, Executor exec) {
-        if (doneCb == null)
-            throw new NullPointerException("doneCb");
-
-        if (exec == null)
-            throw new NullPointerException("exec");
+    public <U> IgniteFuture<U> chainAsync(IgniteClosure<? super IgniteFuture<T>, U> doneCb, Executor exec) {
+        Objects.requireNonNull(doneCb);
+        Objects.requireNonNull(exec);
 
         return new ChainedFuture<>(this, doneCb, exec);
     }
@@ -332,7 +326,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * @param res Async operation result.
      * @return This {@link TopicMessageFuture} in a {@link State#DONE} state.
      */
-    public TopicMessageFuture<V> resolve(V res) {
+    public TopicMessageFuture<T> resolve(T res) {
         // See createServerResponseQueue() method documentation for the implementation details.
         if (state != State.CANCELLED) {
             if (state == State.INIT)
@@ -362,7 +356,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * @param cancelTimeout Cancellation timeout.
      * @return This {@link TopicMessageFuture}.
      */
-    public TopicMessageFuture<V> setCancellation(IgniteRunnable cancellation, long cancelTimeout) {
+    public TopicMessageFuture<T> setCancellation(IgniteRunnable cancellation, long cancelTimeout) {
         if (cancellation != null && cancelTimeout <= 0)
             throw new IllegalArgumentException("cancelTimeout must be a positive number");
 
@@ -380,9 +374,8 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * @param ignite Ignite node.
      * @return This {@link TopicMessageFuture}.
      */
-    public TopicMessageFuture<V> setIgnite(Ignite ignite) {
-        if (ignite == null)
-            throw new NullPointerException("ignite");
+    public TopicMessageFuture<T> setIgnite(Ignite ignite) {
+        Objects.requireNonNull(ignite);
 
         this.ignite = ignite;
 
@@ -402,7 +395,7 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * <li>A random serializable {@link #topic} name is generated on the server and transmitted to the client.</li>
      * <li>The server starts listening to the {@link #topic}.</li>
      * <li>
-     * Optionally, the server might decide to execute the operation synchronously and use {@link #resolve(V)} to set the
+     * Optionally, the server might decide to execute the operation synchronously and use {@link #resolve(T)} to set the
      * operation result before returning the instance of {@link TopicMessageFuture} to the client. In this case the
      * server does not create the {@link #topic}.
      * </li>
@@ -483,9 +476,9 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
 
     /** @return Result from the message received from the server. */
     @SuppressWarnings("unchecked")
-    private V unwrapResult(ServerResponse msg) {
+    private T unwrapResult(ServerResponse msg) {
         if (msg instanceof Result)
-            return ((Result<V>)msg).result();
+            return ((Result<T>)msg).result();
         else if (msg instanceof CancelAck)
             throw new IgniteFutureCancelledException(((CancelAck)msg).failure());
         else
@@ -564,21 +557,21 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
     /**
      * {@link TopicMessageFuture} client-side listener to call with the specified {@link Executor}.
      */
-    private final class AsyncListener implements IgniteInClosure<IgniteFuture<V>> {
+    private final class AsyncListener implements IgniteInClosure<IgniteFuture<T>> {
         /** Listener. */
-        private final IgniteInClosure<? super IgniteFuture<V>> lsnr;
+        private final IgniteInClosure<? super IgniteFuture<T>> lsnr;
 
         /** Executor. */
         private final Executor exec;
 
         /** Constructor. */
-        AsyncListener(IgniteInClosure<? super IgniteFuture<V>> lsnr, Executor exec) {
+        AsyncListener(IgniteInClosure<? super IgniteFuture<T>> lsnr, Executor exec) {
             this.lsnr = lsnr;
             this.exec = exec;
         }
 
         /** {@inheritDoc} */
-        @Override public void apply(IgniteFuture<V> fut) {
+        @Override public void apply(IgniteFuture<T> fut) {
             exec.execute(() -> lsnr.apply(fut));
         }
     }
@@ -587,64 +580,86 @@ public class TopicMessageFuture<V> implements IgniteFuture<V>, Binarylizable {
      * Simple non-distributed {@link IgniteFuture} implementation returned to the client as a result of {@link
      * TopicMessageFuture} chaining.
      */
-    private static class ChainedFuture<V, T> implements IgniteFuture<T> {
+    private static class ChainedFuture<U, V> implements IgniteFuture<U> {
+        /** Target. */
+        private final IgniteFuture<V> target;
+
+        /** Implementation. */
+        private final CompletableFuture<U> impl = new CompletableFuture<>();
+
         /** Constructor. */
-        ChainedFuture(IgniteFuture<V> target, IgniteClosure<? super IgniteFuture<V>, T> doneCb, Executor exec) {
-            // TODO:
-//            IgniteInClosure<? super IgniteFuture<T>> lsnr = ignored -> doneCb.apply();
-//
-//            target.listen();
+        ChainedFuture(IgniteFuture<V> target, IgniteClosure<? super IgniteFuture<V>, U> doneCb, Executor exec) {
+            this.target = target;
+
+            if (exec == null)
+                target.listen(fut -> impl.complete(doneCb.apply(fut)));
+            else
+                target.listenAsync(fut -> impl.complete(doneCb.apply(fut)), exec);
         }
 
         /** {@inheritDoc} */
-        @Override public T get() throws IgniteException {
-            return null;
+        @Override public U get() throws IgniteException {
+            try {
+                return impl.get();
+            }
+            catch (Exception e) {
+                throw new IgniteException(e);
+            }
         }
 
         /** {@inheritDoc} */
-        @Override public T get(long timeout) throws IgniteException {
+        @Override public U get(long timeout) throws IgniteException {
             return get(timeout, TimeUnit.MICROSECONDS);
         }
 
         /** {@inheritDoc} */
-        @Override public T get(long timeout, TimeUnit unit) throws IgniteException {
-            return null;
+        @Override public U get(long timeout, TimeUnit unit) throws IgniteException {
+            try {
+                return impl.get(timeout, unit);
+            }
+            catch (Exception e) {
+                throw new IgniteException(e);
+            }
         }
 
         /** {@inheritDoc} */
         @Override public boolean cancel() throws IgniteException {
-            return false;
+            boolean res = target.cancel();
+
+            impl.cancel(false);
+
+            return res;
         }
 
         /** {@inheritDoc} */
         @Override public boolean isCancelled() {
-            return false;
+            return impl.isCancelled();
         }
 
         /** {@inheritDoc} */
         @Override public boolean isDone() {
-            return false;
+            return impl.isDone();
         }
 
         /** {@inheritDoc} */
-        @Override public void listen(IgniteInClosure<? super IgniteFuture<T>> lsnr) {
-
+        @Override public void listen(IgniteInClosure<? super IgniteFuture<U>> lsnr) {
+            impl.thenAccept(ignored -> lsnr.apply(this));
         }
 
         /** {@inheritDoc} */
-        @Override public void listenAsync(IgniteInClosure<? super IgniteFuture<T>> lsnr, Executor exec) {
-
+        @Override public void listenAsync(IgniteInClosure<? super IgniteFuture<U>> lsnr, Executor exec) {
+            impl.thenAcceptAsync(ignored -> lsnr.apply(this), exec);
         }
 
         /** {@inheritDoc} */
-        @Override public <T1> IgniteFuture<T1> chain(IgniteClosure<? super IgniteFuture<T>, T1> doneCb) {
-            return null;
+        @Override public <W> IgniteFuture<W> chain(IgniteClosure<? super IgniteFuture<U>, W> doneCb) {
+            return new ChainedFuture<>(this, doneCb, null);
         }
 
         /** {@inheritDoc} */
         @Override
-        public <T1> IgniteFuture<T1> chainAsync(IgniteClosure<? super IgniteFuture<T>, T1> doneCb, Executor exec) {
-            return null;
+        public <W> IgniteFuture<W> chainAsync(IgniteClosure<? super IgniteFuture<U>, W> doneCb, Executor exec) {
+            return new ChainedFuture<>(this, doneCb, exec);
         }
     }
 }
