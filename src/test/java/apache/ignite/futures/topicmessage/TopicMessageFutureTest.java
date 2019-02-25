@@ -1,4 +1,4 @@
-package apache.ignite.futures;
+package apache.ignite.futures.topicmessage;
 
 import apache.ignite.futures.testobjects.Calculator;
 import apache.ignite.futures.testobjects.CalculatorService;
@@ -88,7 +88,7 @@ public class TopicMessageFutureTest {
      * Calling {@link TopicMessageFuture#cancel()} during {@link TopicMessageFuture#get()}.
      */
     @Test(expected = IgniteFutureCancelledException.class)
-    public void testCancelGet() {
+    public void cancelOperationWhileClientWaitsForResult() {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
 
@@ -111,7 +111,7 @@ public class TopicMessageFutureTest {
      * {@link TopicMessageFuture#listen(IgniteInClosure)} test.
      */
     @Test
-    public void testListen() throws InterruptedException {
+    public void listenForResultBeforeOperationCompletes() throws InterruptedException {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
 
@@ -136,7 +136,7 @@ public class TopicMessageFutureTest {
      * {@link TopicMessageFuture#chain(IgniteClosure)} test.
      */
     @Test
-    public void testChain() {
+    public void chainResultBeforeOperationCompletes() {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
 

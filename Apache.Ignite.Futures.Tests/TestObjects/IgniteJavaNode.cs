@@ -47,6 +47,14 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
                     "Ignite Java Node did not start in {0} seconds\n",
                     MaxWaitTimeSec);
             }
+
+            if (errors.Length > 0)
+            {
+                throw new Exception(
+                    "Ignite Java Server did not start OK. Make sure: 1) IGNITE_HOME environment variable is properly " +
+                    "set. 2) Calculator service classes are built using command 'gradle classes testClasses'. " +
+                    "\nError details: " + errors);
+            }
         }
 
         /// <summary>
@@ -68,23 +76,6 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
                 lock (output)
                     return output.ToString();
             }
-        }
-
-        /// <summary>
-        /// Error output from the node.
-        /// </summary>
-        public string Errors
-        {
-            get
-            {
-                lock (errors)
-                    return errors.ToString();
-            }
-        }
-
-        public bool IsFailed
-        {
-            get { return Errors.Length > 0; }
         }
 
         public Guid Id { get; private set; }

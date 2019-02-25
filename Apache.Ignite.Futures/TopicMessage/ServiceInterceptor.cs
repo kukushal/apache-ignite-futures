@@ -8,9 +8,9 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Apache.Ignite.Futures
+namespace Apache.Ignite.Futures.TopicMessage
 {
-    class ServiceInterceptor<T> : IInterceptor where T : class
+    internal class ServiceInterceptor<T> : IInterceptor where T : class
     {
         private static readonly ModuleBuilder moduleBuilder = AppDomain.CurrentDomain
             .DefineDynamicAssembly(new AssemblyName("Apache.Ignite.Futures.Dynamic"), AssemblyBuilderAccess.Run)
@@ -52,7 +52,7 @@ namespace Apache.Ignite.Futures
             ct.Register(
                 () =>
                 {
-                    igniteMsgs.Send("CANCEL_REQ", javaFuture.Topic);
+                    igniteMsgs.Send(new CancelReq(), javaFuture.Topic);
                     tcs.SetCanceled();
                 });
 

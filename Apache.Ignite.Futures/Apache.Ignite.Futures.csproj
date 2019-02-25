@@ -46,7 +46,11 @@
   <ItemGroup>
     <Compile Include="ServiceInterceptor.cs" />
     <Compile Include="ServiceLocator.cs" />
-    <Compile Include="TopicMessageFuture.cs" />
+    <Compile Include="TopicMessage\CancelAck.cs" />
+    <Compile Include="TopicMessage\CancelReq.cs" />
+    <Compile Include="TopicMessage\Result.cs" />
+    <Compile Include="TopicMessage\ServerResponse.cs" />
+    <Compile Include="TopicMessage\TopicMessageFuture.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -1,4 +1,4 @@
-package apache.ignite.futures;
+package apache.ignite.futures.topicmessage;
 
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteException;
@@ -478,7 +478,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
     @SuppressWarnings("unchecked")
     private T unwrapResult(ServerResponse msg) {
         if (msg instanceof Result)
-            return ((Result<T>)msg).result();
+            return ((Result<T>)msg).value();
         else if (msg instanceof CancelAck)
             throw new IgniteFutureCancelledException(((CancelAck)msg).failure());
         else
@@ -512,46 +512,6 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
          * before the operation was complete.
          */
         CANCELLED
-    }
-
-    /** Server response. */
-    private interface ServerResponse {
-    }
-
-    /** Result sent from the server to the client. */
-    private static class Result<V> implements ServerResponse {
-        /** Result. */
-        private final V res;
-
-        /** Constructor. */
-        Result(V res) {
-            this.res = res;
-        }
-
-        /** @return Result or {@code null} if the operation has no result. */
-        V result() {
-            return res;
-        }
-    }
-
-    /** Cancellation request sent from the client to the server. */
-    private static class CancelReq {
-    }
-
-    /** Cancellation confirmation sent from the server to the client. */
-    private static class CancelAck implements ServerResponse {
-        /** Failure message. */
-        private final String failure;
-
-        /** Constructor. */
-        CancelAck(String failure) {
-            this.failure = failure;
-        }
-
-        /** @return Cancellation failure or {@code null} is cancellation succeeded. */
-        String failure() {
-            return failure;
-        }
     }
 
     /**

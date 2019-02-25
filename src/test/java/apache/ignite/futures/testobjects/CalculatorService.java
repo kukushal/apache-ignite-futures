@@ -1,6 +1,6 @@
 package apache.ignite.futures.testobjects;
 
-import apache.ignite.futures.TopicMessageFuture;
+import apache.ignite.futures.topicmessage.TopicMessageFuture;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.resources.IgniteInstanceResource;
 import org.apache.ignite.services.Service;

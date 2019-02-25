@@ -1,6 +1,6 @@
 package apache.ignite.futures.testobjects;
 
-import apache.ignite.futures.TopicMessageFuture;
+import apache.ignite.futures.topicmessage.TopicMessageFuture;
 
 /**
  * Calculator interface.

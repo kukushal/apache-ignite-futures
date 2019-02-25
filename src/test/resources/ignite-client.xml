@@ -30,5 +30,11 @@
                 <property name="compactFooter" value="true" />
             </bean>
         </property>
+
+        <!-- Increased timeouts to allow debugging. Remove this from production configuration. -->
+        <property name="metricsLogFrequency" value="0"/>
+        <property name="failureDetectionTimeout" value="600000"/>
+        <property name="clientFailureDetectionTimeout" value="600000"/>
+        <property name="networkTimeout" value="600000"/>
     </bean>
 </beans>

@@ -1,4 +1,5 @@
 ﻿using Apache.Ignite.Core;
+using Apache.Ignite.Futures.TopicMessage;
 using Castle.DynamicProxy;
 
 namespace Apache.Ignite.Futures
