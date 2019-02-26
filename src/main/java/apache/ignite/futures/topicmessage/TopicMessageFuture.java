@@ -23,6 +23,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -34,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  * <li>The server creates the future and returns it to the client.</li>
  * <li>
- * The server starts asynchronous operation and calls {@link #resolve(Object)} when the operation is complete.
+ * The server starts asynchronous operation and calls {@link #resolve(T, long)} when the operation is complete.
  * </li>
  * <li>
  * The client calls {@link #get()} to synchronously wait for the operation result or {@link #chain}/{@link
@@ -60,9 +61,7 @@ import java.util.concurrent.TimeUnit;
  * {@link TopicMessageFuture} <b>client and server must be in separate Ignite nodes</b>.
  */
 public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
-    /**
-     * Unique topic name generated on the server to use for the client-server communication.
-     */
+    /** Unique topic name generated on the server to use for the client-server communication. */
     private String topic = UUID.randomUUID().toString();
 
     /**
@@ -70,14 +69,10 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      */
     private State state = State.INIT;
 
-    /**
-     * The async operation's result if applicable.
-     */
-    private T res;
+    /** The async operation's result if applicable. */
+    private T result;
 
-    /**
-     * Server-side cancellation routine or {@code null} if cancellation is not applicable.
-     */
+    /** Server-side cancellation routine or {@code null} if cancellation is not applicable. */
     private transient IgniteRunnable cancellation = null;
 
     /**
@@ -91,20 +86,17 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      */
     private transient Ignite ignite = Ignition.allGrids().get(0);
 
-    /**
-     * Client-side queue of the server responses.
-     */
-    private transient BlockingQueue<ServerResponse> srvRspQueue;
+    /** Client-side queue of the server responses. */
+    private transient BlockingQueue<Object> srvRspQueue;
 
-    /**
-     * Server-side {@link CancelReq} listener or {@code null} if cancellation is not applicable.
-     */
-    private transient IgniteBiPredicate<UUID, Object> cancelReqLsnr;
-
-    /**
-     * Client-side listeners list.
-     */
+    /** Client-side listeners list. */
     private transient Collection<IgniteInClosure<? super TopicMessageFuture<T>>> lsnrs;
+
+    /** Server-side client requests listener. */
+    private transient IgniteBiPredicate<UUID, Object> clientReqLsnr;
+
+    /** Server-side "is client ready to receive result?" latch. */
+    private final transient CountDownLatch clientReadyLatch = new CountDownLatch(1);
 
     /**
      * {@inheritDoc}
@@ -117,35 +109,16 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
 
         writer.writeString("topic", topic);
         writer.writeEnum("state", state);
-        writer.writeObject("res", res);
+        writer.writeObject("result", result);
         writer.writeLong("cancelTimeout", cancelTimeout);
 
-        // See createServerResponseQueue() method documentation for the cancellation details.
-        if (cancellation != null && cancelReqLsnr == null) {
+        // See createServerResponseQueue() method for the protocol details.
+        if (state != State.DONE) {
             IgniteMessaging igniteMsg = ignite.message();
 
-            cancelReqLsnr = (nodeId, msg) -> {
-                if (msg instanceof CancelReq) {
-                    String failure = null;
+            clientReqLsnr = (nodeId, msg) -> !clientSideHandler(msg);
 
-                    try {
-                        cancellation.run();
-
-                        state = State.CANCELLED;
-                    }
-                    catch (Exception ex) {
-                        failure = ex.getMessage();
-                    }
-
-                    igniteMsg.send(topic, new CancelAck(failure));
-
-                    return false; // stop listening
-                }
-
-                return true; // continue listening
-            };
-
-            igniteMsg.localListen(topic, cancelReqLsnr);
+            igniteMsg.localListen(topic, clientReqLsnr);
         }
     }
 
@@ -157,7 +130,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         // The client is receiving the future from the server
         topic = reader.readString("topic");
         state = reader.readEnum("state");
-        res = reader.readObject("res");
+        result = reader.readObject("result");
         cancelTimeout = reader.readLong("cancelTimeout");
 
         srvRspQueue = createServerResponseQueue();
@@ -172,7 +145,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         if (srvRspQueue == null)
             throw new IllegalStateException("Trying to call client-side method on the server side");
 
-        ServerResponse msg;
+        Object msg;
 
         try {
             msg = srvRspQueue.take();
@@ -200,7 +173,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         if (srvRspQueue == null)
             throw new IllegalStateException("Trying to call client-side method on the server side");
 
-        ServerResponse msg;
+        Object msg;
 
         try {
             msg = srvRspQueue.poll(timeout, unit);
@@ -229,7 +202,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
 
             igniteMsg.send(topic, new CancelReq());
 
-            ServerResponse msg;
+            Object msg;
 
             try {
                 msg = srvRspQueue.poll(cancelTimeout, TimeUnit.MILLISECONDS);
@@ -323,23 +296,26 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
     /**
      * SERVER-SIDE API: set result of the async operation.
      *
-     * @param res Async operation result.
+     * @param result Async operation result.
+     * @param resolveTimeout Max time in milliseconds to wait for the client to become ready to receive the result.
      * @return This {@link TopicMessageFuture} in a {@link State#DONE} state.
      */
-    public TopicMessageFuture<T> resolve(T res) {
+    public TopicMessageFuture<T> resolve(T result, long resolveTimeout) throws InterruptedException {
         // See createServerResponseQueue() method documentation for the implementation details.
         if (state != State.CANCELLED) {
             if (state == State.INIT)
-                this.res = res;
+                this.result = result;
             else {
                 IgniteMessaging igniteMsg = ignite.message();
 
-                igniteMsg.send(topic, new Result<>(res));
+                clientReadyLatch.await(resolveTimeout, TimeUnit.MILLISECONDS);
 
-                if (cancelReqLsnr != null) {
-                    igniteMsg.stopLocalListen(topic, cancelReqLsnr);
+                igniteMsg.send(topic, new Result<>(result));
 
-                    cancelReqLsnr = null;
+                if (clientReqLsnr != null) {
+                    igniteMsg.stopLocalListen(topic, clientReqLsnr);
+
+                    clientReqLsnr = null;
                 }
             }
 
@@ -395,21 +371,22 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      * <li>A random serializable {@link #topic} name is generated on the server and transmitted to the client.</li>
      * <li>The server starts listening to the {@link #topic}.</li>
      * <li>
-     * Optionally, the server might decide to execute the operation synchronously and use {@link #resolve(T)} to set the
-     * operation result before returning the instance of {@link TopicMessageFuture} to the client. In this case the
-     * server does not create the {@link #topic}.
+     * Optionally, the server might decide to execute the operation synchronously and use {@link #resolve(T, long)} to
+     * set the operation result before returning the instance of {@link TopicMessageFuture} to the client. In this case
+     * the server does not create the {@link #topic}.
      * </li>
      * </ul>
      * </li>
      * <li>
-     * The client receives the instance of {@link TopicMessageFuture} and starts listening to the received {@link
-     * #topic} unless the instance already contains the operation result.
+     * The client receives the instance of {@link TopicMessageFuture}, sends {@link ResultReq} to tbe server to indicate
+     * it is ready to receive the operaiton result and starts listening to the received {@link #topic}.
      * </li>
      * <li>
-     * When the async operation is complete, the server calls {@link #resolve(Object)} to send the operation's result to
-     * the client or {@code null} if the operation has no result to return.
+     * When the async operation is complete, the server makes sure the {@link ResultReq} has been received and calls
+     * {@link #resolve(T, long)} to send the operation's result to the client or {@code null} if the operation has no
+     * result to return.
      * </li>
-     * <li>The client receives the result and stores it in {@link #res}.</li>
+     * <li>The client receives the result and stores it in {@link #result}.</li>
      * <li>
      * Use one of these client-side APIs to retrieve the result once it becomes available: {@link #get()}, {@link
      * #get(long)}, {@link #get(long, TimeUnit)}, {@link #listen(IgniteInClosure)}, {@link #listenAsync(IgniteInClosure,
@@ -425,14 +402,14 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      *
      * @return An instance of {@link BlockingQueue} listening for the server responses.
      */
-    private BlockingQueue<ServerResponse> createServerResponseQueue() {
+    private BlockingQueue<Object> createServerResponseQueue() {
         // Only one server response can be received: either result of cancellation confirmation.
-        BlockingQueue<ServerResponse> q = new ArrayBlockingQueue<>(1);
+        BlockingQueue<Object> q = new ArrayBlockingQueue<>(1);
 
         if (state == State.DONE) {
             // The server executed and completed operation synchronously.
             try {
-                q.put(new Result<>(res));
+                q.put(new Result<>(result));
             }
             catch (InterruptedException ignored) {
             }
@@ -441,14 +418,11 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
             IgniteMessaging igniteMsg = ignite.message();
 
             igniteMsg.localListen(topic, (nodeId, msg) -> {
-                if (msg instanceof ServerResponse) {
-                    if (msg instanceof Result)
-                        state = State.DONE;
-                    else if (msg instanceof CancelAck && ((CancelAck)msg).failure() == null)
-                        state = State.CANCELLED;
+                boolean processed = serverSideHandler(msg);
 
+                if (processed) {
                     try {
-                        q.put((ServerResponse)msg);
+                        q.put(msg);
                     }
                     catch (InterruptedException ignored) {
                     }
@@ -463,20 +437,70 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
                     });
 
                     lsnrs.clear();
-
-                    return false; // stop listening
                 }
 
-                return true; // continue listening
+                return !processed;
             });
+
+            igniteMsg.send(topic, new ResultReq());
         }
 
         return q;
     }
 
+    /**
+     * Server-side message loop.
+     * @param msg Message.
+     * @return {@code true} if the message was processed.
+     */
+    private boolean serverSideHandler(Object msg) {
+        boolean processed = true;
+
+        if (msg instanceof Result)
+            state = State.DONE;
+        else if (msg instanceof CancelAck) {
+            if (((CancelAck)msg).failure() == null)
+                state = State.CANCELLED;
+        }
+        else
+            processed = false;
+
+        return processed;
+    }
+
+    /**
+     * Client-side message loop.
+     * @param msg A message from the server.
+     * @return {@code true} if the message was processed.
+     */
+    private boolean clientSideHandler(Object msg) {
+        boolean processed = true;
+
+        if (msg instanceof CancelReq) {
+            String failure = null;
+
+            try {
+                cancellation.run();
+
+                state = State.CANCELLED;
+            }
+            catch (Exception ex) {
+                failure = ex.getMessage();
+            }
+
+            ignite.message().send(topic, new CancelAck(failure));
+        }
+        else if (msg instanceof ResultReq)
+            clientReadyLatch.countDown();
+        else
+            processed = false;
+
+        return processed;
+    }
+
     /** @return Result from the message received from the server. */
     @SuppressWarnings("unchecked")
-    private T unwrapResult(ServerResponse msg) {
+    private T unwrapResult(Object msg) {
         if (msg instanceof Result)
             return ((Result<T>)msg).value();
         else if (msg instanceof CancelAck)
@@ -503,7 +527,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
 
         /**
          * The operation this {@link TopicMessageFuture} is tracking is complete: {@link
-         * TopicMessageFuture#resolve(Object)} was called.
+         * TopicMessageFuture#resolve(Object, long)} was called.
          */
         DONE,
 

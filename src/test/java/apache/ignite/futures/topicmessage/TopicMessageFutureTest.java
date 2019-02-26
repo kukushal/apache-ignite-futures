@@ -1,7 +1,6 @@
 package apache.ignite.futures.topicmessage;
 
 import apache.ignite.futures.testobjects.Calculator;
-import apache.ignite.futures.testobjects.CalculatorService;
 import apache.ignite.futures.testobjects.Cluster;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.lang.IgniteClosure;
@@ -28,7 +27,7 @@ public class TopicMessageFutureTest {
     @Test
     public void getResultBeforeOperationCompletes() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
 
             int actual = calcFut.get();
 
@@ -43,9 +42,9 @@ public class TopicMessageFutureTest {
     @Test
     public void getResultAfterOperationCompletes() throws Exception {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 10);
 
-            Thread.sleep(CalculatorService.OPERATION_DURATION + 500);
+            Thread.sleep(1000);
 
             int actual = calcFut.get();
 
@@ -60,9 +59,9 @@ public class TopicMessageFutureTest {
     @Test(expected = IgniteFutureTimeoutException.class)
     public void getResultTimesOut() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
 
-            calcFut.get(CalculatorService.OPERATION_DURATION / 4, TimeUnit.MILLISECONDS);
+            calcFut.get(2000 / 4, TimeUnit.MILLISECONDS);
 
             assertTrue(calcFut.isDone());
         }
@@ -74,7 +73,7 @@ public class TopicMessageFutureTest {
     @Test
     public void cancelOperationFromSameClient() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
 
             boolean isCancelled = calcFut.cancel();
 
@@ -90,11 +89,11 @@ public class TopicMessageFutureTest {
     @Test(expected = IgniteFutureCancelledException.class)
     public void cancelOperationWhileClientWaitsForResult() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
 
             Executors.newFixedThreadPool(1).submit(() -> {
                 try {
-                    Thread.sleep(CalculatorService.OPERATION_DURATION/4);
+                    Thread.sleep(2000 / 4);
 
                     calcFut.cancel();
                 }
@@ -113,7 +112,7 @@ public class TopicMessageFutureTest {
     @Test
     public void listenForResultBeforeOperationCompletes() throws InterruptedException {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 1000);
 
             CountDownLatch latch = new CountDownLatch(1);
 
@@ -128,7 +127,7 @@ public class TopicMessageFutureTest {
                 latch.countDown();
             });
 
-            latch.await(CalculatorService.OPERATION_DURATION * 2, TimeUnit.MILLISECONDS);
+            latch.await(1000 * 2, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -138,7 +137,7 @@ public class TopicMessageFutureTest {
     @Test
     public void chainResultBeforeOperationCompletes() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 1000);
 
             IgniteFuture<String> chainedFut = calcFut.chain(fut -> fut.get().toString());
 
@@ -150,10 +149,10 @@ public class TopicMessageFutureTest {
     }
 
     /**
-     * @return {@link IgniteFuture} from {@link Calculator#sum(int, int)}.
+     * @return {@link IgniteFuture} from {@link Calculator#sum(int, int, int)}.
      */
-    private static IgniteFuture<Integer> asyncSum(Ignite ignite, int a, int b) {
-        return serviceProxy(ignite).sum(a, b).setIgnite(ignite);
+    private static IgniteFuture<Integer> asyncSum(Ignite ignite, int a, int b, int duration) {
+        return serviceProxy(ignite).sum(a, b, duration).setIgnite(ignite);
     }
 
     /**

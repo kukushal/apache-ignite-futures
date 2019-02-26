@@ -1,5 +1,4 @@
 ﻿using Apache.Ignite.Core;
-using Apache.Ignite.Core.Messaging;
 using Castle.DynamicProxy;
 using System;
 using System.Linq;
@@ -32,7 +31,7 @@ namespace Apache.Ignite.Futures.TopicMessage
             var javaSvcProxy = GetServiceProxy();
 
             // Remove cancellation token from the Java service args
-            CancellationToken ct = (CancellationToken)invocation.Arguments[invocation.Arguments.Length - 1];
+            CancellationToken cancellation = (CancellationToken)invocation.Arguments[invocation.Arguments.Length - 1];
 
             object[] javaSvcArgs = new object[invocation.Arguments.Length - 1];
             Array.Copy(invocation.Arguments, javaSvcArgs, invocation.Arguments.Length - 1);
@@ -43,40 +42,23 @@ namespace Apache.Ignite.Futures.TopicMessage
 
             var igniteMsgs = ignite.GetMessaging();
 
-            var tcsType = typeof(TaskCompletionSource<>)
+            var futureResultType = typeof(TaskCompletionSource<>)
                 .MakeGenericType(invocation.Method.ReturnType.GetGenericArguments());
             
-            dynamic tcs = Activator.CreateInstance(tcsType);
+            dynamic futureResult = Activator.CreateInstance(futureResultType);
 
             // Send cancellation request to the server if user cancels the async operation
-            ct.Register(
+            cancellation.Register(
                 () =>
                 {
                     igniteMsgs.Send(new CancelReq(), javaFuture.Topic);
-                    tcs.SetCanceled();
+                    futureResult.SetCanceled();
                 });
 
             // Complete the task when the result is received
-            igniteMsgs.LocalListen(new MessageListener(tcs), javaFuture.Topic);
+            igniteMsgs.LocalListen(new MessageListener(futureResult, javaFuture), javaFuture.Topic);
 
-            invocation.ReturnValue = tcs.Task;
-        }
-
-        private class MessageListener : IMessageListener<object>
-        {
-            private dynamic tcs;
-
-            public MessageListener(dynamic tcs)
-            {
-                this.tcs = tcs;
-            }
-
-            public bool Invoke(Guid nodeId, object result)
-            {
-                tcs.SetResult(result);
-
-                return false; // unsubscribe
-            }
+            invocation.ReturnValue = futureResult.Task;
         }
 
         /// <summary>

@@ -6,17 +6,13 @@ import org.apache.ignite.resources.IgniteInstanceResource;
 import org.apache.ignite.services.Service;
 import org.apache.ignite.services.ServiceContext;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Ignite Service implementation of {@link Calculator}.
  */
 public class CalculatorService implements Calculator, Service {
-    /**
-     * Operation duration in milliseconds.
-     */
-    public static final int OPERATION_DURATION = 2000;
-
     /** Ignite. */
     @IgniteInstanceResource
     private Ignite ignite;
@@ -28,30 +24,44 @@ public class CalculatorService implements Calculator, Service {
      * {@inheritDoc}
      */
     @Override
-    public TopicMessageFuture<Integer> sum(int n1, int n2) {
+    public TopicMessageFuture<Integer> sum(int n1, int n2, int duration) {
         wasCancelled.set(false);
         TopicMessageFuture<Integer> fut = new TopicMessageFuture<Integer>()
             .setCancellation(() -> wasCancelled.set(true), 2000)
             .setIgnite(ignite);
 
-        ignite.compute().runAsync(() -> {
-            // The operation takes OPERATION_DURATION milliseconds
+        if (duration > 0)
+            CompletableFuture.runAsync(() -> {
+                // The operation takes "duration" milliseconds
+                try {
+                    final int ITERATIONS_CNT = 10;
+
+                    if (duration > ITERATIONS_CNT) {
+                        for (int i = 0; i < ITERATIONS_CNT && !wasCancelled.get(); i++)
+                            Thread.sleep(duration / ITERATIONS_CNT);
+                    }
+                    else
+                        Thread.sleep(duration);
+                }
+                catch (InterruptedException ignored) {
+                }
+
+                if (!wasCancelled.get()) {
+                    try {
+                        fut.resolve(n1 + n2, 2000);
+                    }
+                    catch (Exception e) {
+                        ignite.log().error(e.toString());
+                    }
+                }
+            });
+        else {
             try {
-                for (int i = 0; i < 10 && !wasCancelled.get(); i++)
-                    Thread.sleep(OPERATION_DURATION / 10);
+                fut.resolve(n1 + n2, 2000); // synchronous computation
             }
             catch (InterruptedException ignored) {
             }
-
-            if (!wasCancelled.get()) {
-                try {
-                    fut.resolve(n1 + n2);
-                }
-                catch (Exception e) {
-                    ignite.log().error(e.toString());
-                }
-            }
-        });
+        }
 
         return fut;
     }

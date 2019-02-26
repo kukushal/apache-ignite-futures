@@ -1,7 +1,7 @@
 package apache.ignite.futures.topicmessage;
 
 /** Cancellation confirmation sent from the server to the client. */
-class CancelAck implements ServerResponse {
+class CancelAck {
     /** Failure message. */
     private final String failure;
 

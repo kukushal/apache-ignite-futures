@@ -1,7 +1,7 @@
 package apache.ignite.futures.topicmessage;
 
 /** Result sent from the server to the client. */
-class Result<V> implements ServerResponse {
+class Result<V> {
     /** Result. */
     private final V value;
 

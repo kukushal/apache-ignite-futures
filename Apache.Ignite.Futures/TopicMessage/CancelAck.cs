@@ -3,7 +3,7 @@
     /// <summary>
     /// Cancellation confirmation sent from the server to the client.
     /// </summary>
-    internal class CancelAck : IServerResponse
+    internal class CancelAck
     {
         /// <summary>
         /// Gets or sets cancellation failure or <code>null</code> is cancellation succeeded.
