@@ -40,23 +40,16 @@ namespace Apache.Ignite.Futures.TopicMessage
 
             var javaFuture = (TopicMessageFuture)javaMethod.Invoke(javaSvcProxy, javaSvcArgs);
 
-            var igniteMsgs = ignite.GetMessaging();
+            var igniteMsg = ignite.GetMessaging();
 
             var futureResultType = typeof(TaskCompletionSource<>)
                 .MakeGenericType(invocation.Method.ReturnType.GetGenericArguments());
             
             dynamic futureResult = Activator.CreateInstance(futureResultType);
 
-            // Send cancellation request to the server if user cancels the async operation
-            cancellation.Register(
-                () =>
-                {
-                    igniteMsgs.Send(new CancelReq(), javaFuture.Topic);
-                    futureResult.SetCanceled();
-                });
-
-            // Complete the task when the result is received
-            igniteMsgs.LocalListen(new MessageListener(futureResult, javaFuture), javaFuture.Topic);
+            igniteMsg.LocalListen(
+                new MessageListener(igniteMsg, futureResult, cancellation, javaFuture), 
+                javaFuture.Topic);
 
             invocation.ReturnValue = futureResult.Task;
         }

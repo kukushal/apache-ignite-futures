@@ -78,7 +78,7 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
             }
         }
 
-        public Guid Id { get; private set; }
+        public string Id { get; private set; }
 
         private Process StartProcess(string cfgPath, string userLibs)
         {
@@ -89,7 +89,7 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
 
             var javaArgs = $"-cp {clsPath} -Djava.util.logging.config.file={Paths.LogPropsPath} " +
                 "-Djava.net.preferIPv4Stack=true " +
-                "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 " +
+                //"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 " +
                 "org.apache.ignite.startup.cmdline.CommandLineStartup " +
                 cfgPath;
 
@@ -142,12 +142,14 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
             }
             else
             {
-                var idMatch = new Regex(@">>>\sLocal\snode\s\[ID=([A-Z,a-z,0-9,\-]+)\,").Match(outputStr);
+                var idMatch = new Regex(@"Ignite\snode\sstarted\sOK\s\(id=([A-Z,a-z,0-9,\-]+)\,").Match(outputStr);
 
                 if (idMatch.Success && idMatch.Groups.Count > 1)
-                    Id = new Guid(idMatch.Groups[1].Value.Replace("-", string.Empty));
+                {
+                    Id = idMatch.Groups[1].Value;
 
-                srvStartedOrFailed.Set();
+                    srvStartedOrFailed.Set();
+                }
             }
 
             lock (consoleLock)

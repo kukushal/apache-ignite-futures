@@ -1,26 +1,42 @@
 ﻿using Apache.Ignite.Core.Messaging;
 using System;
+using System.Threading;
 
 namespace Apache.Ignite.Futures.TopicMessage
 {
     /// <summary>
-    /// Client-side processing of <see cref="TopicMessageFuture"/> events.
+    /// Client-side processing of <see cref="TopicMessageFuture"/> messages.
     /// </summary>
     internal class MessageListener : IMessageListener<object>
     {
+        private readonly IMessaging igniteMsg;
         private readonly dynamic futureResult;
         private readonly TopicMessageFuture future;
+        private readonly CancellationToken cancellation;
 
         /// <summary>
         /// Constructor.
         /// </summary>
-        public MessageListener(dynamic futureResult, TopicMessageFuture future)
+        public MessageListener(
+            IMessaging igniteMsg,
+            dynamic futureResult,
+            CancellationToken cancellation,
+            TopicMessageFuture future)
         {
+            this.igniteMsg = igniteMsg;
             this.futureResult = futureResult;
             this.future = future;
+            this.cancellation = cancellation;
 
             if (future.State == State.Done)
                 futureResult.SetResult(future.Result);
+            else
+            {
+                // Send cancellation request to the server if user cancels the async operation
+                cancellation.Register(() => igniteMsg.Send(new CancelReq(), future.Topic));
+
+                igniteMsg.Send(new ResultReq(), future.Topic);
+            }
         }
 
         /// <summary>
@@ -31,11 +47,11 @@ namespace Apache.Ignite.Futures.TopicMessage
             switch (msg)
             {
                 case Result res:
-                    futureResult.SetResult(res.Value);
+                    futureResult.SetResult((dynamic)res.Value);
                     return false; // stop listening
 
                 case CancelAck cancelAck:
-                    // TODO: handle cancellation
+                    futureResult.SetCanceled();
                     return false;
             }
 

@@ -4,6 +4,7 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.IgniteMessaging;
 import org.apache.ignite.Ignition;
+import org.apache.ignite.binary.BinaryObject;
 import org.apache.ignite.binary.BinaryObjectException;
 import org.apache.ignite.binary.BinaryReader;
 import org.apache.ignite.binary.BinaryWriter;
@@ -34,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  * <li>The server creates the future and returns it to the client.</li>
  * <li>
- * The server starts asynchronous operation and calls {@link #resolve(T, long)} when the operation is complete.
+ * The server starts asynchronous operation and calls {@link #resolve(Object, long)} when the operation is complete.
  * </li>
  * <li>
  * The client calls {@link #get()} to synchronously wait for the operation result or {@link #chain}/{@link
@@ -58,6 +59,14 @@ import java.util.concurrent.TimeUnit;
  * </li>
  * </ul>
  * {@link TopicMessageFuture} <b>client and server must be in separate Ignite nodes</b>.
+ * <p>
+ * Notes for developers:
+ * <ul>
+ * <li>
+ * .NET-Java Ignite Services Interop includes .NET {@link TopicMessageFuture} counterpart. Thus, keep the
+ * {@link TopicMessageFuture} class name and non-transient field names in sync with .NET.
+ * </li>
+ * </ul>
  */
 public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
     /** Unique topic name generated on the server to use for the client-server communication. */
@@ -127,8 +136,12 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         result = reader.readObject("result");
         cancelTimeout = reader.readLong("cancelTimeout");
 
-        lsnrs = new ConcurrentLinkedQueue<>();
-        srvRspQueue = createServerResponseQueue();
+        // Start client-side message processing only if this node is a Java node. .NET client-side processing is
+        // implemented in .NET
+        if (isJavaPlatform()) {
+            lsnrs = new ConcurrentLinkedQueue<>();
+            srvRspQueue = createServerResponseQueue();
+        }
     }
 
     /**
@@ -293,6 +306,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      * @param result Async operation result.
      * @param resolveTimeout Max time in milliseconds to wait for the client to become ready to receive the result.
      * @return This {@link TopicMessageFuture} in a {@link State#DONE} state.
+     * @throws InterruptedException if the current thread is interrupted while waiting.
      */
     public TopicMessageFuture<T> resolve(T result, long resolveTimeout) throws InterruptedException {
         // See createServerResponseQueue() method documentation for the implementation details.
@@ -459,6 +473,10 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      * @return {@code true} to keep the loop; {@code false} to stop messages processing.
      */
     private boolean serverSideHandler(Object msg) {
+        // .NET messages come as raw Ignite binaries
+        if (msg instanceof BinaryObject)
+            serverSideHandler(((BinaryObject)msg).deserialize());
+
         boolean isFinalMsg = false;
 
         if (msg instanceof CancelReq) {
@@ -494,6 +512,13 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
             throw new IgniteFutureCancelledException(((CancelAck)msg).failure());
         else
             throw new IgniteException("Unsupported message received from the server: " + msg);
+    }
+
+    /**
+     * @return {@code true} if current node is a "pure Java" node (not a .NET node).
+     */
+    private boolean isJavaPlatform() {
+        return ignite.configuration().getPlatformConfiguration() == null;
     }
 
     /**

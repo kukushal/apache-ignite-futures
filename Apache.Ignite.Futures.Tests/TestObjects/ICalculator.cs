@@ -5,6 +5,6 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
 {
     public interface ICalculator
     {
-        Task<int> Sum(int n1, int n2, CancellationToken ct);
+        Task<int> Sum(int n1, int n2, int duration, CancellationToken ct);
     }
 }

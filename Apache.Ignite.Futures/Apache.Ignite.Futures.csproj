@@ -45,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TopicMessage\MessageListener.cs" />
+    <Compile Include="TopicMessage\ResultReq.cs" />
     <Compile Include="TopicMessage\ServiceInterceptor.cs" />
     <Compile Include="ServiceLocator.cs" />
     <Compile Include="TopicMessage\CancelAck.cs" />
