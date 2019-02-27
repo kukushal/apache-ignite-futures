@@ -8,7 +8,6 @@ import org.apache.ignite.binary.BinaryObjectException;
 import org.apache.ignite.binary.BinaryReader;
 import org.apache.ignite.binary.BinaryWriter;
 import org.apache.ignite.binary.Binarylizable;
-import org.apache.ignite.lang.IgniteBiPredicate;
 import org.apache.ignite.lang.IgniteClosure;
 import org.apache.ignite.lang.IgniteFuture;
 import org.apache.ignite.lang.IgniteFutureCancelledException;
@@ -92,9 +91,6 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
     /** Client-side listeners list. */
     private transient Collection<IgniteInClosure<? super TopicMessageFuture<T>>> lsnrs;
 
-    /** Server-side client requests listener. */
-    private transient IgniteBiPredicate<UUID, Object> clientReqLsnr;
-
     /** Server-side "is client ready to receive result?" latch. */
     private final transient CountDownLatch clientReadyLatch = new CountDownLatch(1);
 
@@ -116,9 +112,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         if (state != State.DONE) {
             IgniteMessaging igniteMsg = ignite.message();
 
-            clientReqLsnr = (nodeId, msg) -> !clientSideHandler(msg);
-
-            igniteMsg.localListen(topic, clientReqLsnr);
+            igniteMsg.localListen(topic, (nodeId, msg) -> serverSideHandler(msg));
         }
     }
 
@@ -133,8 +127,8 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         result = reader.readObject("result");
         cancelTimeout = reader.readLong("cancelTimeout");
 
-        srvRspQueue = createServerResponseQueue();
         lsnrs = new ConcurrentLinkedQueue<>();
+        srvRspQueue = createServerResponseQueue();
     }
 
     /**
@@ -311,12 +305,6 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
                 clientReadyLatch.await(resolveTimeout, TimeUnit.MILLISECONDS);
 
                 igniteMsg.send(topic, new Result<>(result));
-
-                if (clientReqLsnr != null) {
-                    igniteMsg.stopLocalListen(topic, clientReqLsnr);
-
-                    clientReqLsnr = null;
-                }
             }
 
             state = State.DONE;
@@ -417,30 +405,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         else {
             IgniteMessaging igniteMsg = ignite.message();
 
-            igniteMsg.localListen(topic, (nodeId, msg) -> {
-                boolean processed = serverSideHandler(msg);
-
-                if (processed) {
-                    try {
-                        q.put(msg);
-                    }
-                    catch (InterruptedException ignored) {
-                    }
-
-                    lsnrs.forEach(l -> {
-                        try {
-                            l.apply(this);
-                        }
-                        catch (Exception ex) {
-                            ignite.log().error("Failed to notify listener", ex);
-                        }
-                    });
-
-                    lsnrs.clear();
-                }
-
-                return !processed;
-            });
+            igniteMsg.localListen(topic, (nodeId, msg) -> clientSideHandler(msg, q));
 
             igniteMsg.send(topic, new ResultReq());
         }
@@ -449,12 +414,13 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
     }
 
     /**
-     * Server-side message loop.
+     * Client-side message loop.
      * @param msg Message.
-     * @return {@code true} if the message was processed.
+     * @param msgQueue Result messages queue.
+     * @return {@code true} to keep the loop; {@code false} to stop messages processing.
      */
-    private boolean serverSideHandler(Object msg) {
-        boolean processed = true;
+    private boolean clientSideHandler(Object msg, BlockingQueue<Object> msgQueue) {
+        boolean isFinalMsg = true;
 
         if (msg instanceof Result)
             state = State.DONE;
@@ -463,18 +429,37 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
                 state = State.CANCELLED;
         }
         else
-            processed = false;
+            isFinalMsg = false;
 
-        return processed;
+        if (isFinalMsg) {
+            try {
+                msgQueue.put(msg);
+            }
+            catch (InterruptedException ignored) {
+            }
+
+            lsnrs.forEach(l -> {
+                try {
+                    l.apply(this);
+                }
+                catch (Exception ex) {
+                    ignite.log().error("Failed to notify listener", ex);
+                }
+            });
+
+            lsnrs.clear();
+        }
+
+        return !isFinalMsg;
     }
 
     /**
-     * Client-side message loop.
+     * Server-side message loop.
      * @param msg A message from the server.
-     * @return {@code true} if the message was processed.
+     * @return {@code true} to keep the loop; {@code false} to stop messages processing.
      */
-    private boolean clientSideHandler(Object msg) {
-        boolean processed = true;
+    private boolean serverSideHandler(Object msg) {
+        boolean isFinalMsg = false;
 
         if (msg instanceof CancelReq) {
             String failure = null;
@@ -489,13 +474,15 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
             }
 
             ignite.message().send(topic, new CancelAck(failure));
+
+            isFinalMsg = (failure == null);
         }
         else if (msg instanceof ResultReq)
             clientReadyLatch.countDown();
-        else
-            processed = false;
+        else if (msg instanceof Result)
+            isFinalMsg = true;
 
-        return processed;
+        return !isFinalMsg;
     }
 
     /** @return Result from the message received from the server. */

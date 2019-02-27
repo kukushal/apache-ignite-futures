@@ -54,6 +54,21 @@ public class TopicMessageFutureTest {
     }
 
     /**
+     * Calling {@link TopicMessageFuture#get()} for the synchronous operation.
+     */
+    @Test
+    public void getSynchronousOperationResult() throws Exception {
+        try (Cluster cluster = new Cluster()) {
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 0 /* 0 means sync execution */);
+
+            int actual = calcFut.get();
+
+            assertEquals(1 + 2, actual);
+            assertTrue(calcFut.isDone());
+        }
+    }
+
+    /**
      * {@link TopicMessageFuture#get(long, TimeUnit)} test.
      */
     @Test(expected = IgniteFutureTimeoutException.class)
@@ -73,7 +88,7 @@ public class TopicMessageFutureTest {
     @Test
     public void cancelOperationFromSameClient() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 20000);
 
             boolean isCancelled = calcFut.cancel();
 
