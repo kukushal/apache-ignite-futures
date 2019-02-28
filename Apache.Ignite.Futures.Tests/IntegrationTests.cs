@@ -17,7 +17,7 @@ namespace Apache.Ignite.Futures.Tests
         [TestMethod()]
         public void GetResultBeforeOperationCompletes()
         {
-            using (var igniteJava = new IgniteJavaNode("ignite-server.xml", svcClsPath))
+            using (Ignition.Start(IgniteServerConfiguration))
             {
                 using (var ignite = Ignition.Start(IgniteClientConfiguration))
                 {
@@ -36,7 +36,7 @@ namespace Apache.Ignite.Futures.Tests
         [ExpectedException(typeof(TaskCanceledException))]
         public void CancelOperationFromSameClient()
         {
-            using (var igniteJava = new IgniteJavaNode("ignite-server.xml", svcClsPath))
+            using (Ignition.Start(IgniteServerConfiguration))
             {
                 using (var ignite = Ignition.Start(IgniteClientConfiguration))
                 {
@@ -62,6 +62,25 @@ namespace Apache.Ignite.Futures.Tests
 
         private static readonly string svcBuildDir = Path.Combine(Paths.OutDir, "..", "..", "..", "build");
         private static readonly string svcClsPath = Paths.GetModuleClasses(svcBuildDir);
+
+        private IgniteConfiguration IgniteServerConfiguration
+        {
+            get
+            {
+                return new IgniteConfiguration
+                {
+                    SpringConfigUrl = "ignite-server.xml",
+                    JvmClasspath = svcClsPath,
+                    PeerAssemblyLoadingMode = PeerAssemblyLoadingMode.CurrentAppDomain,
+                    JvmOptions = new List<string>
+                    {
+                        "-Djava.net.preferIPv4Stack=true",
+                        "-Djava.util.logging.config.file=" + Paths.LogPropsPath,
+                        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+                    },
+                };
+            }
+        }
 
         private IgniteConfiguration IgniteClientConfiguration
         {
