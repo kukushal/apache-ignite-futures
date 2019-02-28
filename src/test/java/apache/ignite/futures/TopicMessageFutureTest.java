@@ -1,7 +1,8 @@
-package apache.ignite.futures.topicmessage;
+package apache.ignite.futures;
 
 import apache.ignite.futures.testobjects.Calculator;
 import apache.ignite.futures.testobjects.Cluster;
+import apache.ignite.futures.topicmessage.TopicMessageFuture;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.lang.IgniteClosure;
 import org.apache.ignite.lang.IgniteFuture;

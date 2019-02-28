@@ -11,8 +11,11 @@ using System.Threading.Tasks;
 
 namespace Apache.Ignite.Futures.Tests
 {
+    /// <summary>
+    /// .NET client calls Ignite Java service.
+    /// </summary>
     [TestClass()]
-    public class IntegrationTests
+    public class DotNetCallingJavaTests
     {
         [TestMethod()]
         public void GetResultBeforeOperationCompletes()
