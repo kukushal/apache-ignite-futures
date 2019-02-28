@@ -76,7 +76,7 @@ namespace Apache.Ignite.Futures.Tests
                     {
                         "-Djava.net.preferIPv4Stack=true",
                         "-Djava.util.logging.config.file=" + Paths.LogPropsPath,
-                        //"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006"
+                        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006"
                     },
                     BinaryConfiguration = new BinaryConfiguration()
                     {

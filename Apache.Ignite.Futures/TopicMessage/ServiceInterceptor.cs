@@ -40,12 +40,12 @@ namespace Apache.Ignite.Futures.TopicMessage
 
             var javaFuture = (TopicMessageFuture)javaMethod.Invoke(javaSvcProxy, javaSvcArgs);
 
-            var igniteMsg = ignite.GetMessaging();
-
             var futureResultType = typeof(TaskCompletionSource<>)
                 .MakeGenericType(invocation.Method.ReturnType.GetGenericArguments());
             
             dynamic futureResult = Activator.CreateInstance(futureResultType);
+
+            var igniteMsg = ignite.GetMessaging();
 
             igniteMsg.LocalListen(
                 new MessageListener(igniteMsg, futureResult, cancellation, javaFuture), 
@@ -69,6 +69,11 @@ namespace Apache.Ignite.Futures.TopicMessage
         private static Type CreateIgniteServiceType()
         {
             Type origType = typeof(T);
+
+            var newType = moduleBuilder.GetType(origType.Name);
+
+            if (newType != null)
+                return newType;
 
             var igniteSvcTypeBuilder = moduleBuilder.DefineType(
                 origType.Name,

@@ -10,9 +10,12 @@ namespace Apache.Ignite.Futures.TopicMessage
     internal class MessageListener : IMessageListener<object>
     {
         private readonly IMessaging igniteMsg;
+
         private readonly dynamic futureResult;
         private readonly TopicMessageFuture future;
         private readonly CancellationToken cancellation;
+
+        private int isCanceled = 0;
 
         /// <summary>
         /// Constructor.
@@ -51,7 +54,12 @@ namespace Apache.Ignite.Futures.TopicMessage
                     return false; // stop listening
 
                 case CancelAck cancelAck:
-                    futureResult.SetCanceled();
+                    // TODO: for some reason we get CancelAck multiple time here. 
+                    // Understand why - maybe Ignite has a bug. 
+                    // For now make sure the task is not already canceled.
+                    if (0 == Interlocked.Exchange(ref isCanceled, 1))
+                        futureResult.SetCanceled();
+
                     return false;
             }
 
