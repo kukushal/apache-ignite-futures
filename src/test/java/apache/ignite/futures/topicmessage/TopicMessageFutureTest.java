@@ -57,7 +57,7 @@ public class TopicMessageFutureTest {
      * Calling {@link TopicMessageFuture#get()} for the synchronous operation.
      */
     @Test
-    public void getSynchronousOperationResult() throws Exception {
+    public void getSynchronousOperationResult() {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 0 /* 0 means sync execution */);
 

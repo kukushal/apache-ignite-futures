@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link IgniteFuture} implementation based on
@@ -63,8 +64,8 @@ import java.util.concurrent.TimeUnit;
  * Notes for developers:
  * <ul>
  * <li>
- * .NET-Java Ignite Services Interop includes .NET {@link TopicMessageFuture} counterpart. Thus, keep the
- * {@link TopicMessageFuture} class name and non-transient field names in sync with .NET.
+ * .NET-Java Ignite Services Interop includes .NET {@link TopicMessageFuture} counterpart. Thus, keep the {@link
+ * TopicMessageFuture} class name and non-transient field names in sync with .NET.
  * </li>
  * </ul>
  */
@@ -103,6 +104,9 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
     /** Server-side "is client ready to receive result?" latch. */
     private final transient CountDownLatch clientReadyLatch = new CountDownLatch(1);
 
+    /** Protection against multiple message listeners initialization. */
+    private final transient AtomicBoolean hasMsgHdlr = new AtomicBoolean(false);
+
     /**
      * {@inheritDoc}
      */
@@ -117,12 +121,8 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         writer.writeObject("result", result);
         writer.writeLong("cancelTimeout", cancelTimeout);
 
-        // See createServerResponseQueue() method for the protocol details.
-        if (state != State.DONE) {
-            IgniteMessaging igniteMsg = ignite.message();
-
-            igniteMsg.localListen(topic, (nodeId, msg) -> serverSideHandler(msg));
-        }
+        if (!hasMsgHdlr.getAndSet(true) && state != State.DONE)
+            ignite.message().localListen(topic, (nodeId, msg) -> serverSideHandler(msg));
     }
 
     /**
@@ -138,7 +138,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
 
         // Start client-side message processing only if this node is a Java node. .NET client-side processing is
         // implemented in .NET
-        if (isJavaPlatform()) {
+        if (!hasMsgHdlr.getAndSet(true) && isJavaPlatform()) {
             lsnrs = new ConcurrentLinkedQueue<>();
             srvRspQueue = createServerResponseQueue();
         }
@@ -429,6 +429,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
 
     /**
      * Client-side message loop.
+     *
      * @param msg Message.
      * @param msgQueue Result messages queue.
      * @return {@code true} to keep the loop; {@code false} to stop messages processing.
@@ -469,6 +470,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
 
     /**
      * Server-side message loop.
+     *
      * @param msg A message from the server.
      * @return {@code true} to keep the loop; {@code false} to stop messages processing.
      */

@@ -33,6 +33,44 @@ namespace Apache.Ignite.Futures.Tests
         }
 
         [TestMethod()]
+        public void GetResultAfterOperationCompletes()
+        {
+            using (Ignition.Start(IgniteServerConfiguration))
+            {
+                using (var ignite = Ignition.Start(IgniteClientConfiguration))
+                {
+                    var calc = new ServiceLocator(ignite).GetService<ICalculator>("Calculator");
+
+                    Task<int> task = calc.Sum(1, 2, 10, CancellationToken.None);
+
+                    Thread.Sleep(1000);
+
+                    var result = task.Result;
+
+                    Assert.AreEqual(1 + 2, result);
+                }
+            }
+        }
+
+        [TestMethod()]
+        public void GetSynchronousOperationResult()
+        {
+            using (Ignition.Start(IgniteServerConfiguration))
+            {
+                using (var ignite = Ignition.Start(IgniteClientConfiguration))
+                {
+                    var calc = new ServiceLocator(ignite).GetService<ICalculator>("Calculator");
+
+                    Task<int> task = calc.Sum(1, 2, 0 /* 0 means sync execution */, CancellationToken.None);
+
+                    var result = task.Result;
+
+                    Assert.AreEqual(1 + 2, result);
+                }
+            }
+        }
+
+        [TestMethod()]
         [ExpectedException(typeof(TaskCanceledException))]
         public void CancelOperationFromSameClient()
         {
@@ -94,8 +132,7 @@ namespace Apache.Ignite.Futures.Tests
                     JvmOptions = new List<string>
                     {
                         "-Djava.net.preferIPv4Stack=true",
-                        "-Djava.util.logging.config.file=" + Paths.LogPropsPath,
-                        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006"
+                        "-Djava.util.logging.config.file=" + Paths.LogPropsPath
                     },
                     BinaryConfiguration = new BinaryConfiguration()
                     {

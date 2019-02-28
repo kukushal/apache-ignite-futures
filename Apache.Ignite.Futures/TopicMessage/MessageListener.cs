@@ -15,8 +15,6 @@ namespace Apache.Ignite.Futures.TopicMessage
         private readonly TopicMessageFuture future;
         private readonly CancellationToken cancellation;
 
-        private int isCanceled = 0;
-
         /// <summary>
         /// Constructor.
         /// </summary>
@@ -32,7 +30,7 @@ namespace Apache.Ignite.Futures.TopicMessage
             this.cancellation = cancellation;
 
             if (future.State == State.Done)
-                futureResult.SetResult(future.Result);
+                futureResult.SetResult((dynamic)future.Result);
             else
             {
                 // Send cancellation request to the server if user cancels the async operation
@@ -54,12 +52,7 @@ namespace Apache.Ignite.Futures.TopicMessage
                     return false; // stop listening
 
                 case CancelAck cancelAck:
-                    // TODO: for some reason we get CancelAck multiple time here. 
-                    // Understand why - maybe Ignite has a bug. 
-                    // For now make sure the task is not already canceled.
-                    if (0 == Interlocked.Exchange(ref isCanceled, 1))
-                        futureResult.SetCanceled();
-
+                    futureResult.SetCanceled();
                     return false;
             }
 

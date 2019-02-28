@@ -27,7 +27,7 @@ public class CalculatorService implements Calculator, Service {
     public TopicMessageFuture<Integer> sum(int n1, int n2, int duration) {
         wasCancelled.set(false);
         TopicMessageFuture<Integer> fut = new TopicMessageFuture<Integer>()
-            .setCancellation(() -> wasCancelled.set(true), 2000)
+            .setCancellation(() -> wasCancelled.set(true), 30_000)
             .setIgnite(ignite);
 
         if (duration > 0)
@@ -48,7 +48,7 @@ public class CalculatorService implements Calculator, Service {
 
                 if (!wasCancelled.get()) {
                     try {
-                        fut.resolve(n1 + n2, 2000);
+                        fut.resolve(n1 + n2, 30_000);
                     }
                     catch (Exception e) {
                         ignite.log().error(e.toString());
