@@ -110,7 +110,7 @@ namespace Apache.Ignite.Futures.Tests
             {
                 return new IgniteConfiguration
                 {
-                    SpringConfigUrl = "ignite-server.xml",
+                    SpringConfigUrl = "ignite-service.xml",
                     JvmClasspath = svcClsPath,
                     PeerAssemblyLoadingMode = PeerAssemblyLoadingMode.CurrentAppDomain,
                     JvmOptions = new List<string>

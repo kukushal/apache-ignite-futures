@@ -19,7 +19,7 @@ public class Cluster implements AutoCloseable {
      * Constructor: start the server and client.
      */
     public Cluster() {
-        Ignite[] futs = Stream.of("ignite-server.xml", "ignite-client.xml")
+        Ignite[] futs = Stream.of("ignite-service.xml", "ignite-client.xml")
             .map(Ignition::start)
             .toArray(Ignite[]::new);
 

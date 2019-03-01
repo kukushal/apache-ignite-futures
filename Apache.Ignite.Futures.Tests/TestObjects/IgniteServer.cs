@@ -10,12 +10,15 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
     {
         public static void Main()
         {
-            using (var ignite = Ignition.StartFromApplicationConfiguration())
+            using (IIgnite ignite = Ignition.StartFromApplicationConfiguration())
             {
                 ignite.GetServices().DeployClusterSingleton("Calculator", new CalculatorService());
 
                 Console.WriteLine(">>> Ignite started OK. Press any key to exit...");
-                Console.ReadKey();
+
+                var k = Console.ReadKey();
+
+                Console.WriteLine($">>> {k.KeyChar} pressed. Exiting...");
             }
         }
     }

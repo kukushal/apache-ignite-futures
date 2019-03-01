@@ -10,5 +10,18 @@
     <bean parent="ignite.cfg">
         <property name="igniteInstanceName" value="apache-ignite-futures-server"/>
         <property name="workDirectory" value="#{systemProperties['java.io.tmpdir']}/apache-ignite-futures-server"/>
+
+        <property name="serviceConfiguration">
+            <list>
+                <bean class="org.apache.ignite.services.ServiceConfiguration">
+                    <property name="name" value="Calculator"/>
+                    <property name="maxPerNodeCount" value="1"/>
+                    <property name="totalCount" value="1"/>
+                    <property name="service">
+                        <bean class="apache.ignite.futures.testobjects.CalculatorService"/>
+                    </property>
+                </bean>
+            </list>
+        </property>
     </bean>
 </beans>

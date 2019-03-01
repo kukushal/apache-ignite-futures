@@ -5,36 +5,11 @@
        xsi:schemaLocation="
         http://www.springframework.org/schema/beans
         http://www.springframework.org/schema/beans/spring-beans.xsd">
-    <bean id="ignite.cfg" class="org.apache.ignite.configuration.IgniteConfiguration">
+    <import resource="ignite-base.xml"/>
+
+    <bean parent="ignite.cfg">
         <property name="clientMode" value="true"/>
         <property name="igniteInstanceName" value="apache-ignite-futures-client"/>
         <property name="workDirectory" value="#{systemProperties['java.io.tmpdir']}apache-ignite-futures-client"/>
-        <property name="localHost" value="127.0.0.1" />
-
-        <property name="discoverySpi">
-            <bean class="org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi">
-                <property name="ipFinder">
-                    <bean class="org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder">
-                        <property name="addresses">
-                            <list>
-                                <value>127.0.0.1:47500</value>
-                            </list>
-                        </property>
-                    </bean>
-                </property>
-            </bean>
-        </property>
-
-        <property name="binaryConfiguration">
-            <bean class="org.apache.ignite.configuration.BinaryConfiguration">
-                <property name="compactFooter" value="true" />
-            </bean>
-        </property>
-
-        <!-- Increased timeouts to allow debugging. Remove this from production configuration. -->
-        <property name="metricsLogFrequency" value="0"/>
-        <property name="failureDetectionTimeout" value="600000"/>
-        <property name="clientFailureDetectionTimeout" value="600000"/>
-        <property name="networkTimeout" value="600000"/>
     </bean>
 </beans>
