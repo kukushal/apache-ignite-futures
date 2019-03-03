@@ -1,5 +1,6 @@
 ﻿using Apache.Ignite.Core;
 using System;
+using System.Threading;
 
 namespace Apache.Ignite.Futures.Tests.TestObjects
 {
@@ -14,11 +15,9 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
             {
                 ignite.GetServices().DeployClusterSingleton("Calculator", new CalculatorService());
 
-                Console.WriteLine(">>> Ignite started OK. Press any key to exit...");
+                Console.WriteLine(">>> Ignite started OK. Press ENTER to exit...");
 
-                var k = Console.ReadKey();
-
-                Console.WriteLine($">>> {k.KeyChar} pressed. Exiting...");
+                Console.Read();
             }
         }
     }

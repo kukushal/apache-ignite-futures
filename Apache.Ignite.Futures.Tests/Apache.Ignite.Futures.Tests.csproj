@@ -65,8 +65,10 @@
   <ItemGroup>
     <Compile Include="DotNetCallingJavaTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TestObjects\CalculatorService2.cs" />
     <Compile Include="TestObjects\CalculatorService.cs" />
     <Compile Include="TestObjects\DotnetToJavaNameMapper.cs" />
+    <Compile Include="TestObjects\ICalculator2.cs" />
     <Compile Include="TestObjects\ICalculator.cs" />
     <Compile Include="TestObjects\IgniteServer.cs" />
     <Compile Include="TestObjects\Paths.cs" />

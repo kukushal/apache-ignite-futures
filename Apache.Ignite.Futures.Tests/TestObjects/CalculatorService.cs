@@ -8,7 +8,24 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
     {
         public Task<int> Sum(int n1, int n2, int duration, CancellationToken ct)
         {
-            throw new System.NotImplementedException();
+            return duration > 0
+                ? Task.Run<int>(() =>
+                {
+                    const int IterationsCnt = 10;
+
+                    if (duration > IterationsCnt)
+                    {
+                        for (int i = 0; i < IterationsCnt && !ct.IsCancellationRequested; i++)
+                            Thread.Sleep(duration / IterationsCnt);
+                    }
+                    else
+                        Thread.Sleep(duration);
+
+                    ct.ThrowIfCancellationRequested();
+
+                    return n1 + n2;
+                })
+                : Task.FromResult<int>(n1 + n2);
         }
 
         public void Cancel(IServiceContext context)

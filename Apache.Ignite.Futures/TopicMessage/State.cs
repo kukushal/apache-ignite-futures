@@ -3,7 +3,7 @@
     /// <summary>
     /// <see cref="TopicMessageFuture"/> state.
     /// </summary>
-    internal enum State
+    public enum State
     {
         Init,
 

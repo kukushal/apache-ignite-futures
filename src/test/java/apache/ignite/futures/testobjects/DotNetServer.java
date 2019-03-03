@@ -31,7 +31,11 @@ public class DotNetServer implements AutoCloseable {
         if (!Files.exists(path))
             throw new Exception("Ignite.NET server executable does not exist: " + path);
 
-        proc = new ProcessBuilder(path.toString()).directory(new File(dir.toString())).start();
+        proc = new ProcessBuilder(path.toString())
+            .directory(new File(dir.toString()))
+            .redirectError(ProcessBuilder.Redirect.INHERIT)
+            .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+            .start();
 
         procReader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
         StringBuilder output = new StringBuilder();

@@ -83,11 +83,11 @@ namespace Apache.Ignite.Futures.Tests
                 {
                     var calc = new ServiceLocator(ignite).GetService<ICalculator>("Calculator");
 
-                    var cts = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+                    var cancelSrc = new CancellationTokenSource(TimeSpan.FromMinutes(1));
 
-                    Task<int> task = calc.Sum(1, 2, 20000, cts.Token);
+                    Task<int> task = calc.Sum(1, 2, 20000, cancelSrc.Token);
 
-                    cts.Cancel();
+                    cancelSrc.Cancel();
 
                     try
                     {
