@@ -30,7 +30,7 @@ namespace Apache.Ignite.Futures.TopicMessage
             this.cancellation = cancellation;
 
             if (future.State == State.Done)
-                futureResult.SetResult((dynamic)future.Result);
+                SetResult(future.Result);
             else
             {
                 // Send cancellation request to the server if user cancels the async operation
@@ -49,7 +49,7 @@ namespace Apache.Ignite.Futures.TopicMessage
             switch (msg)
             {
                 case Result res:
-                    futureResult.SetResult((dynamic)res.Value);
+                    SetResult(res);
                     return false; // stop listening
 
                 case CancelAck cancelAck:
@@ -58,6 +58,14 @@ namespace Apache.Ignite.Futures.TopicMessage
             }
 
             return true; // continue listening
+        }
+
+        private void SetResult(Result res)
+        {
+            if (res.Failure != null)
+                futureResult.SetException((dynamic)new ServiceException(res.Failure));
+            else
+                futureResult.SetResult((dynamic)res.Value);
         }
     }
 }

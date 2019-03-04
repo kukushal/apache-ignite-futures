@@ -24,7 +24,7 @@ public class CalculatorService implements Calculator, Service {
      * {@inheritDoc}
      */
     @Override
-    public TopicMessageFuture<Integer> sum(int n1, int n2, int duration) {
+    public TopicMessageFuture<Integer> sum(int n1, int n2, int duration, String failureMsg) {
         wasCancelled.set(false);
         TopicMessageFuture<Integer> fut = new TopicMessageFuture<Integer>()
             .setCancellation(() -> wasCancelled.set(true), 30_000)
@@ -48,7 +48,10 @@ public class CalculatorService implements Calculator, Service {
 
                 if (!wasCancelled.get()) {
                     try {
-                        fut.resolve(n1 + n2, 30_000);
+                        if (failureMsg != null)
+                            fut.fail(failureMsg, 30_000);
+                        else
+                            fut.resolve(n1 + n2, 30_000);
                     }
                     catch (Exception e) {
                         ignite.log().error(e.toString());
@@ -57,7 +60,10 @@ public class CalculatorService implements Calculator, Service {
             });
         else {
             try {
-                fut.resolve(n1 + n2, 2000); // synchronous computation
+                if (failureMsg != null)
+                    fut.fail(failureMsg, 30_000);
+                else
+                    fut.resolve(n1 + n2, 30_000); // synchronous computation
             }
             catch (InterruptedException ignored) {
             }

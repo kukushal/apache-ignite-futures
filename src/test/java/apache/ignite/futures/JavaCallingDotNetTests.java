@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -23,7 +24,7 @@ public class JavaCallingDotNetTests {
     @Test
     public void getResultBeforeOperationCompletes() throws Exception {
         try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
-            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 2000);
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 2000, null);
 
             int actual = calcFut.get();
 
@@ -35,7 +36,7 @@ public class JavaCallingDotNetTests {
     @Test
     public void getResultAfterOperationCompletes() throws Exception {
         try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
-            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 10);
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 10, null);
 
             Thread.sleep(1_000);
 
@@ -49,7 +50,7 @@ public class JavaCallingDotNetTests {
     @Test
     public void getSynchronousOperationResult() throws Exception {
         try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
-            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 0 /* 0 means sync execution */);
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 0 /* 0 means sync execution */, null);
 
             assertTrue(calcFut.isDone());
 
@@ -62,16 +63,38 @@ public class JavaCallingDotNetTests {
     @Test(expected = IgniteFutureTimeoutException.class)
     public void getResultTimesOut() throws Exception {
         try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
-            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 20_000);
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 20_000, null);
 
             calcFut.get(1_000, TimeUnit.MILLISECONDS);
         }
     }
 
     @Test
+    public void getResultFails() throws Exception {
+        try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
+            final String EXP_FAILURE = "FAILURE!";
+
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 2_000, EXP_FAILURE);
+
+            String actualFailure = null;
+
+            try {
+                calcFut.get();
+            }
+            catch (ServiceException ex) {
+                actualFailure = ex.getMessage();
+            }
+
+            assertNotNull(actualFailure);
+            assertTrue(actualFailure.contains(EXP_FAILURE));
+            assertTrue(calcFut.isDone());
+        }
+    }
+
+    @Test
     public void cancelOperationFromSameClient() throws Exception {
         try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
-            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 60_000);
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 60_000, null);
 
             boolean isCancelled = calcFut.cancel();
 
@@ -83,7 +106,7 @@ public class JavaCallingDotNetTests {
     @Test(expected = IgniteFutureCancelledException.class)
     public void cancelOperationWhileClientWaitsForResult() throws Exception {
         try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
-            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 60_000);
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 60_000, null);
 
             Executors.newFixedThreadPool(1).submit(() -> {
                 try {
@@ -103,7 +126,7 @@ public class JavaCallingDotNetTests {
     @Test
     public void listenForResultBeforeOperationCompletes() throws Exception {
         try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
-            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 1000);
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 1000, null);
 
             CountDownLatch latch = new CountDownLatch(1);
 
@@ -124,7 +147,7 @@ public class JavaCallingDotNetTests {
     @Test
     public void chainResultBeforeOperationCompletes() throws Exception {
         try (DotNetServer ignored = new DotNetServer(); Ignite ignite = Ignition.start("ignite-client.xml")) {
-            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 1000);
+            IgniteFuture<Integer> calcFut = asyncSum(ignite, 1, 2, 1000, null);
 
             IgniteFuture<String> chainedFut = calcFut.chain(fut -> fut.get().toString());
 
@@ -136,10 +159,10 @@ public class JavaCallingDotNetTests {
     }
 
     /**
-     * @return {@link IgniteFuture} from {@link Calculator#sum(int, int, int)}.
+     * @return {@link IgniteFuture} from {@link Calculator#sum(int, int, int, String)}.
      */
-    private static IgniteFuture<Integer> asyncSum(Ignite ignite, int a, int b, int duration) {
-        return serviceProxy(ignite).sum(a, b, duration).setIgnite(ignite);
+    private static IgniteFuture<Integer> asyncSum(Ignite ignite, int a, int b, int duration, String failureMsg) {
+        return serviceProxy(ignite).sum(a, b, duration, failureMsg).setIgnite(ignite);
     }
 
     /**

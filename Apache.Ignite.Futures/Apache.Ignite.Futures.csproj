@@ -44,6 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ServiceException.cs" />
     <Compile Include="TopicMessage\ServerSideHandler.cs" />
     <Compile Include="TopicMessage\ClientSideHandler.cs" />
     <Compile Include="TopicMessage\ResultReq.cs" />

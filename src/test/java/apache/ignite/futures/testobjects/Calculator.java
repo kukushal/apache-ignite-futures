@@ -9,7 +9,7 @@ public interface Calculator {
     /**
      * A very long running operation to add two integers.
      */
-    TopicMessageFuture<Integer> sum(int n1, int n2, int duration);
+    TopicMessageFuture<Integer> sum(int n1, int n2, int duration, String failureMsg);
 
     /**
      * @return {@code true} if the last operation was cancelled; {@code false} otherwise.

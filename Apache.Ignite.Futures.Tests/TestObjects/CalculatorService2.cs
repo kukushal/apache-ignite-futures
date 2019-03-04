@@ -13,11 +13,11 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
         [InstanceResource]
         private readonly IIgnite ignite;
 
-        public TopicMessageFuture sum(int n1, int n2, int duration)
+        public TopicMessageFuture sum(int n1, int n2, int duration, string failureMsg)
         {
             var cancelSrc = new CancellationTokenSource();
 
-            var task = sum(n1, n2, duration, cancelSrc.Token);
+            var task = sum(n1, n2, duration, failureMsg, cancelSrc.Token);
 
             var igniteMsg = ignite.GetMessaging();
 

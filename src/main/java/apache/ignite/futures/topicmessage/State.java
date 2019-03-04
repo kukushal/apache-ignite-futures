@@ -22,8 +22,13 @@ enum State {
     DONE,
 
     /**
-     * The operation this {@link TopicMessageFuture} is cancelled: {@link TopicMessageFuture#cancel()} was called before
-     * the operation was complete.
+     * The operation this {@link TopicMessageFuture} is tracking is cancelled: {@link TopicMessageFuture#cancel()}
+     * was called before the operation was complete.
      */
-    CANCELLED
+    CANCELLED,
+
+    /**
+     * The operation this {@link TopicMessageFuture} is tracking is failed.
+     */
+    FAILED
 }

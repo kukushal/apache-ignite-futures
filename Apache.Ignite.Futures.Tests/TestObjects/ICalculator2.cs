@@ -6,6 +6,6 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
 {
     public interface ICalculator2
     {
-        TopicMessageFuture sum(int n1, int n2, int duration);
+        TopicMessageFuture sum(int n1, int n2, int duration, string failureMsg);
     }
 }

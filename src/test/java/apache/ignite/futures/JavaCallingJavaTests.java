@@ -28,7 +28,7 @@ public class JavaCallingJavaTests {
     @Test
     public void getResultBeforeOperationCompletes() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000, null);
 
             int actual = calcFut.get();
 
@@ -43,7 +43,7 @@ public class JavaCallingJavaTests {
     @Test
     public void getResultAfterOperationCompletes() throws Exception {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 10);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 10, null);
 
             Thread.sleep(1000);
 
@@ -60,7 +60,7 @@ public class JavaCallingJavaTests {
     @Test
     public void getSynchronousOperationResult() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 0 /* 0 means sync execution */);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 0 /* 0 means sync execution */, null);
 
             assertTrue(calcFut.isDone());
 
@@ -76,9 +76,33 @@ public class JavaCallingJavaTests {
     @Test(expected = IgniteFutureTimeoutException.class)
     public void getResultTimesOut() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000, null);
 
             calcFut.get(2000 / 4, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * {@link TopicMessageFuture#get(long, TimeUnit)} test.
+     */
+    @Test
+    public void getResultFails() {
+        try (Cluster cluster = new Cluster()) {
+            final String EXP_FAILURE = "FAILURE!";
+
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000, EXP_FAILURE);
+
+            String actualFailure = null;
+
+            try {
+                calcFut.get();
+            }
+            catch (ServiceException ex) {
+                actualFailure = ex.getMessage();
+            }
+
+            assertEquals(EXP_FAILURE, actualFailure);
+            assertTrue(calcFut.isDone());
         }
     }
 
@@ -88,7 +112,7 @@ public class JavaCallingJavaTests {
     @Test
     public void cancelOperationFromSameClient() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 20000);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 20000, null);
 
             boolean isCancelled = calcFut.cancel();
 
@@ -104,7 +128,7 @@ public class JavaCallingJavaTests {
     @Test(expected = IgniteFutureCancelledException.class)
     public void cancelOperationWhileClientWaitsForResult() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000, null);
 
             Executors.newFixedThreadPool(1).submit(() -> {
                 try {
@@ -127,7 +151,7 @@ public class JavaCallingJavaTests {
     @Test
     public void listenForResultBeforeOperationCompletes() throws InterruptedException {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 1000);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 1000, null);
 
             CountDownLatch latch = new CountDownLatch(1);
 
@@ -151,7 +175,7 @@ public class JavaCallingJavaTests {
     @Test
     public void chainResultBeforeOperationCompletes() {
         try (Cluster cluster = new Cluster()) {
-            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 1000);
+            IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 1000, null);
 
             IgniteFuture<String> chainedFut = calcFut.chain(fut -> fut.get().toString());
 
@@ -163,10 +187,10 @@ public class JavaCallingJavaTests {
     }
 
     /**
-     * @return {@link IgniteFuture} from {@link Calculator#sum(int, int, int)}.
+     * @return {@link IgniteFuture} from {@link Calculator#sum(int, int, int, String)}.
      */
-    private static IgniteFuture<Integer> asyncSum(Ignite ignite, int a, int b, int duration) {
-        return serviceProxy(ignite).sum(a, b, duration).setIgnite(ignite);
+    private static IgniteFuture<Integer> asyncSum(Ignite ignite, int a, int b, int duration, String failureMsg) {
+        return serviceProxy(ignite).sum(a, b, duration, failureMsg).setIgnite(ignite);
     }
 
     /**

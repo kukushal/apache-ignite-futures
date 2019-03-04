@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Apache.Ignite.Core.Services;
 
@@ -6,26 +7,32 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
 {
     class CalculatorService : ICalculator, IService
     {
-        public Task<int> sum(int n1, int n2, int duration, CancellationToken ct)
+        public Task<int> sum(int n1, int n2, int duration, string failureMsg, CancellationToken ct)
         {
-            return duration > 0
-                ? Task.Run<int>(() =>
-                {
-                    const int IterationsCnt = 10;
+            Exception failure = failureMsg == null ? null : new Exception(failureMsg);
 
-                    if (duration > IterationsCnt)
+            if (duration > 0)
+                return Task.Run<int>(() =>
                     {
-                        for (int i = 0; i < IterationsCnt && !ct.IsCancellationRequested; i++)
-                            Thread.Sleep(duration / IterationsCnt);
-                    }
-                    else
-                        Thread.Sleep(duration);
+                        const int IterationsCnt = 10;
 
-                    ct.ThrowIfCancellationRequested();
+                        if (duration > IterationsCnt)
+                        {
+                            for (int i = 0; i < IterationsCnt && !ct.IsCancellationRequested; i++)
+                                Thread.Sleep(duration / IterationsCnt);
+                        }
+                        else
+                            Thread.Sleep(duration);
 
-                    return n1 + n2;
-                })
-                : Task.FromResult<int>(n1 + n2);
+                        ct.ThrowIfCancellationRequested();
+
+                        if (failure != null)
+                            throw failure;
+
+                        return n1 + n2;
+                    });
+
+            return failure == null ? Task.FromResult<int>(n1 + n2) : Task.FromException<int>(failure);
         }
 
         public void Cancel(IServiceContext context)

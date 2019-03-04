@@ -1,5 +1,6 @@
 package apache.ignite.futures.topicmessage;
 
+import apache.ignite.futures.ServiceException;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.IgniteMessaging;
@@ -79,7 +80,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
     private State state = State.INIT;
 
     /** The async operation's result if applicable. */
-    private T result;
+    private Result<T> result;
 
     /** Server-side cancellation routine or {@code null} if cancellation is not applicable. */
     private transient IgniteRunnable cancellation = null;
@@ -309,23 +310,19 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      * @throws InterruptedException if the current thread is interrupted while waiting.
      */
     public TopicMessageFuture<T> resolve(T result, long resolveTimeout) throws InterruptedException {
-        // See createServerResponseQueue() method documentation for the implementation details.
-        if (state != State.CANCELLED) {
-            if (state == State.INIT)
-                this.result = result;
-            else {
-                IgniteMessaging igniteMsg = ignite.message();
+        return resolve(new Result<>(result, null), resolveTimeout);
+    }
 
-                if (!clientReadyLatch.await(resolveTimeout, TimeUnit.MILLISECONDS))
-                    throw new IgniteFutureTimeoutException(this.getClass().getTypeName() + " resolution timed out.");
-
-                igniteMsg.send(topic, new Result<>(result));
-            }
-
-            state = State.DONE;
-        }
-
-        return this;
+    /**
+     * SERVER-SIDE API: fail the async operation.
+     *
+     * @param failure Failure.
+     * @param resolveTimeout Max time in milliseconds to wait for the client to become ready to receive the result.
+     * @return This {@link TopicMessageFuture} in a {@link State#DONE} state.
+     * @throws InterruptedException if the current thread is interrupted while waiting.
+     */
+    public TopicMessageFuture<T> fail(String failure, long resolveTimeout) throws InterruptedException {
+        return resolve(new Result<>(null, failure), resolveTimeout);
     }
 
     /**
@@ -412,7 +409,7 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         if (state == State.DONE) {
             // The server executed and completed operation synchronously.
             try {
-                q.put(new Result<>(result));
+                q.put(result);
             }
             catch (InterruptedException ignored) {
             }
@@ -509,11 +506,46 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
         return !isFinalMsg;
     }
 
+    /**
+     * SERVER-SIDE API: set result of the async operation.
+     *
+     * @param result Async operation result.
+     * @param resolveTimeout Max time in milliseconds to wait for the client to become ready to receive the result.
+     * @return This {@link TopicMessageFuture} in a {@link State#DONE} state or {@link State#FAILED}.
+     * @throws InterruptedException if the current thread is interrupted while waiting.
+     */
+    public TopicMessageFuture<T> resolve(Result<T> result, long resolveTimeout) throws InterruptedException {
+        // See createServerResponseQueue() method documentation for the implementation details.
+        if (state != State.CANCELLED) {
+            if (state == State.INIT)
+                this.result = result;
+            else {
+                IgniteMessaging igniteMsg = ignite.message();
+
+                if (!clientReadyLatch.await(resolveTimeout, TimeUnit.MILLISECONDS))
+                    throw new IgniteFutureTimeoutException(this.getClass().getTypeName() + " resolution timed out.");
+
+                igniteMsg.send(topic, result);
+            }
+
+            state = result.failure() == null ? State.DONE : State.FAILED;
+        }
+
+        return this;
+    }
+
     /** @return Result from the message received from the server. */
     @SuppressWarnings("unchecked")
     private T unwrapResult(Object msg) {
-        if (msg instanceof Result)
-            return ((Result<T>)msg).value();
+        if (msg instanceof Result) {
+            Result<T> res = (Result<T>)msg;
+            String failure = res.failure();
+
+            if (failure != null)
+                throw new ServiceException(failure);
+
+            return res.value();
+        }
         else if (msg instanceof CancelAck)
             throw new IgniteFutureCancelledException(((CancelAck)msg).failure());
         else

@@ -10,7 +10,7 @@
 
         public State State { get; set; }
 
-        public object Result { get; set; }
+        public Result Result { get; set; }
 
         public long CancelTimeout { get; set; }
     }

@@ -37,13 +37,13 @@ namespace Apache.Ignite.Futures.TopicMessage
                 Future.CancelTimeout = 120_000; // 2 minutes: hard-coded cancellation timeout
 
             if (state == State.Done)
-                Future.Result = task.Result;
+                Future.Result = ToResult(task);
             else
-                task.ContinueWith(t => 
+                task.ContinueWith(t =>
                 {
                     try
                     {
-                        Resolve(t.Result, 600_000);
+                        Resolve(120_000); // 2 minutes: hard-coded resolution timeout
                     }
                     catch (OperationCanceledException)
                     {
@@ -99,14 +99,26 @@ namespace Apache.Ignite.Futures.TopicMessage
             return !isFinalMsg; 
         }
 
-        private void Resolve(object result, int resolveTimeout)
+        private void Resolve(int resolveTimeout)
         {
             if (!clientReadyEvent.WaitOne(resolveTimeout))
             {
                 throw new TimeoutException("TopicMessageFuture resolution timed out.");
             }
 
-            igniteMsg.Send(new Result { Value = result }, Future.Topic);
+            igniteMsg.Send(ToResult(task), Future.Topic);
+        }
+
+        private static Result ToResult(Task<T> task)
+        {
+            try
+            {
+                return new Result { Value = task.Result };
+            }
+            catch (AggregateException ex)
+            {
+                return new Result { Failure = ex.ToString() };
+            }
         }
 
         private static State ToState(TaskStatus taskStatus)
@@ -122,6 +134,9 @@ namespace Apache.Ignite.Futures.TopicMessage
                 case TaskStatus.Running:
                 case TaskStatus.WaitingForChildrenToComplete:
                     return State.Active;
+
+                case TaskStatus.Faulted:
+                    return State.Failed;
 
                 default:
                     return State.Init;
