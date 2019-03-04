@@ -17,26 +17,15 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
         {
             var cancelSrc = new CancellationTokenSource();
 
-            var task = Sum(n1, n2, duration, cancelSrc.Token);
-
-            var fut = new TopicMessageFuture
-            {
-                Topic = Guid.NewGuid().ToString(),
-                State = State.Init
-            };
+            var task = sum(n1, n2, duration, cancelSrc.Token);
 
             var igniteMsg = ignite.GetMessaging();
 
-            var lsnr = new ServerSideHandler(igniteMsg, fut);
+            var lsnr = new ServerSideHandler<int>(igniteMsg, task, cancelSrc);
 
-            igniteMsg.LocalListen(lsnr, fut.Topic);
+            igniteMsg.LocalListen(lsnr, lsnr.Future.Topic);
 
-            task.ContinueWith(t =>
-            {
-                lsnr.Resolve(t.Result, 600_000);
-            });
-
-            return fut;
+            return lsnr.Future;
         }
     }
 }

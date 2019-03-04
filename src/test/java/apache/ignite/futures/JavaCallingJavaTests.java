@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * {@link TopicMessageFuture} integration tests.
  */
-public class TopicMessageFutureTest {
+public class JavaCallingJavaTests {
     /**
      * Calling {@link TopicMessageFuture#get()} before the operation is complete.
      */
@@ -62,10 +62,11 @@ public class TopicMessageFutureTest {
         try (Cluster cluster = new Cluster()) {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 0 /* 0 means sync execution */);
 
+            assertTrue(calcFut.isDone());
+
             int actual = calcFut.get();
 
             assertEquals(1 + 2, actual);
-            assertTrue(calcFut.isDone());
         }
     }
 
@@ -78,8 +79,6 @@ public class TopicMessageFutureTest {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 2000);
 
             calcFut.get(2000 / 4, TimeUnit.MILLISECONDS);
-
-            assertTrue(calcFut.isDone());
         }
     }
 
@@ -131,7 +130,6 @@ public class TopicMessageFutureTest {
             IgniteFuture<Integer> calcFut = asyncSum(cluster.client(), 1, 2, 1000);
 
             CountDownLatch latch = new CountDownLatch(1);
-
 
             calcFut.listen(fut -> {
                 assertTrue(fut.isDone());

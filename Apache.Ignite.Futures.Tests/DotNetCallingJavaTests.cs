@@ -26,7 +26,7 @@ namespace Apache.Ignite.Futures.Tests
                 {
                     var calc = new ServiceLocator(ignite).GetService<ICalculator>("Calculator");
 
-                    Task<int> task = calc.Sum(1, 2, 2000, CancellationToken.None);
+                    Task<int> task = calc.sum(1, 2, 2000, CancellationToken.None);
 
                     var result = task.Result;
 
@@ -44,7 +44,7 @@ namespace Apache.Ignite.Futures.Tests
                 {
                     var calc = new ServiceLocator(ignite).GetService<ICalculator>("Calculator");
 
-                    Task<int> task = calc.Sum(1, 2, 10, CancellationToken.None);
+                    Task<int> task = calc.sum(1, 2, 10, CancellationToken.None);
 
                     Thread.Sleep(1000);
 
@@ -64,7 +64,7 @@ namespace Apache.Ignite.Futures.Tests
                 {
                     var calc = new ServiceLocator(ignite).GetService<ICalculator>("Calculator");
 
-                    Task<int> task = calc.Sum(1, 2, 0 /* 0 means sync execution */, CancellationToken.None);
+                    Task<int> task = calc.sum(1, 2, 0 /* 0 means sync execution */, CancellationToken.None);
 
                     var result = task.Result;
 
@@ -85,7 +85,7 @@ namespace Apache.Ignite.Futures.Tests
 
                     var cancelSrc = new CancellationTokenSource(TimeSpan.FromMinutes(1));
 
-                    Task<int> task = calc.Sum(1, 2, 20000, cancelSrc.Token);
+                    Task<int> task = calc.sum(1, 2, 20000, cancelSrc.Token);
 
                     cancelSrc.Cancel();
 

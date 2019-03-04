@@ -43,6 +43,7 @@ namespace Apache.Ignite.Futures.TopicMessage
         /// <summary>
         /// Process Ignite topic-based message coming from the server's <see cref="TopicMessageFuture"/>.
         /// </summary>
+        /// <returns><code>true</code> to keep the loop; <code>false</code> to stop messages processing.</returns>
         public bool Invoke(Guid nodeId, object msg)
         {
             switch (msg)

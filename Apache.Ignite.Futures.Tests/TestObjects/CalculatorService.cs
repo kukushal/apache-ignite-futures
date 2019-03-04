@@ -6,7 +6,7 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
 {
     class CalculatorService : ICalculator, IService
     {
-        public Task<int> Sum(int n1, int n2, int duration, CancellationToken ct)
+        public Task<int> sum(int n1, int n2, int duration, CancellationToken ct)
         {
             return duration > 0
                 ? Task.Run<int>(() =>

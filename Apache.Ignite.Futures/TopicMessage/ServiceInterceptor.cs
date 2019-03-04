@@ -36,7 +36,7 @@ namespace Apache.Ignite.Futures.TopicMessage
             object[] javaSvcArgs = new object[invocation.Arguments.Length - 1];
             Array.Copy(invocation.Arguments, javaSvcArgs, invocation.Arguments.Length - 1);
 
-            var javaMethod = javaSvcType.GetTypeInfo().GetDeclaredMethod(ToJavaMethodName(invocation.Method.Name));
+            var javaMethod = javaSvcType.GetTypeInfo().GetDeclaredMethod(invocation.Method.Name);
 
             var javaFuture = (TopicMessageFuture)javaMethod.Invoke(javaSvcProxy, javaSvcArgs);
 
@@ -86,7 +86,7 @@ namespace Apache.Ignite.Futures.TopicMessage
             foreach (var origMethod in origAsyncMethods)
             {
                 var igniteMethodBuilder = igniteSvcTypeBuilder.DefineMethod(
-                    ToJavaMethodName(origMethod.Name),
+                    origMethod.Name,
                     origMethod.Attributes);
 
                 igniteMethodBuilder.SetReturnType(typeof(TopicMessageFuture));
@@ -101,13 +101,6 @@ namespace Apache.Ignite.Futures.TopicMessage
             }
 
             return igniteSvcTypeBuilder.CreateType();
-        }
-
-        private static string ToJavaMethodName(string dotNetMethodName)
-        {
-            return string.IsNullOrEmpty(dotNetMethodName) 
-                ? dotNetMethodName
-                : dotNetMethodName[0].ToString().ToLowerInvariant() + dotNetMethodName.Substring(1);
         }
 
         /// <returns>Ignite service proxy for the Java service type.</returns>

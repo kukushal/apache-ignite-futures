@@ -493,19 +493,18 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
                 cancellation.run();
 
                 state = State.CANCELLED;
+                isFinalMsg = true;
             }
             catch (Exception ex) {
                 failure = ex.getMessage();
             }
 
             ignite.message().send(topic, new CancelAck(failure));
-
-            isFinalMsg = (failure == null);
         }
         else if (msg instanceof ResultReq)
             clientReadyLatch.countDown();
         else if (msg instanceof Result)
-            isFinalMsg = true;
+            isFinalMsg = true; // unsubscribe on sending the result to the client
 
         return !isFinalMsg;
     }
