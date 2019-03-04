@@ -48,7 +48,7 @@ namespace Apache.Ignite.Futures.TopicMessage
             var igniteMsg = ignite.GetMessaging();
 
             igniteMsg.LocalListen(
-                new MessageListener(igniteMsg, futureResult, cancellation, javaFuture), 
+                new ClientSideHandler(igniteMsg, futureResult, cancellation, javaFuture), 
                 javaFuture.Topic);
 
             invocation.ReturnValue = futureResult.Task;

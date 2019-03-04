@@ -13,7 +13,7 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
         {
             using (IIgnite ignite = Ignition.StartFromApplicationConfiguration())
             {
-                ignite.GetServices().DeployClusterSingleton("Calculator", new CalculatorService());
+                ignite.GetServices().DeployClusterSingleton("Calculator", new CalculatorService2());
 
                 Console.WriteLine(">>> Ignite started OK. Press ENTER to exit...");
 

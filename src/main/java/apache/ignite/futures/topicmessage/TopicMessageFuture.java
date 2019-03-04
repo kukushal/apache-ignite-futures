@@ -316,7 +316,8 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
             else {
                 IgniteMessaging igniteMsg = ignite.message();
 
-                clientReadyLatch.await(resolveTimeout, TimeUnit.MILLISECONDS);
+                if (!clientReadyLatch.await(resolveTimeout, TimeUnit.MILLISECONDS))
+                    throw new IgniteFutureTimeoutException(this.getClass().getTypeName() + " resolution timed out.");
 
                 igniteMsg.send(topic, new Result<>(result));
             }
@@ -435,6 +436,10 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      * @return {@code true} to keep the loop; {@code false} to stop messages processing.
      */
     private boolean clientSideHandler(Object msg, BlockingQueue<Object> msgQueue) {
+        // .NET messages come as raw Ignite binaries
+        if (msg instanceof BinaryObject)
+            clientSideHandler(((BinaryObject)msg).deserialize(), msgQueue);
+
         boolean isFinalMsg = true;
 
         if (msg instanceof Result)
@@ -521,35 +526,6 @@ public class TopicMessageFuture<T> implements IgniteFuture<T>, Binarylizable {
      */
     private boolean isJavaPlatform() {
         return ignite.configuration().getPlatformConfiguration() == null;
-    }
-
-    /**
-     * {@link TopicMessageFuture} state.
-     */
-    private enum State {
-        /**
-         * The instance of {@link TopicMessageFuture} is created on the server and not yet sent to the client. This
-         * state is applicable to the server-side only, while the other states are applicable to both the client and
-         * server sides.
-         */
-        INIT,
-
-        /**
-         * The operation that this {@link TopicMessageFuture} is tracking is in progress.
-         */
-        ACTIVE,
-
-        /**
-         * The operation this {@link TopicMessageFuture} is tracking is complete: {@link
-         * TopicMessageFuture#resolve(Object, long)} was called.
-         */
-        DONE,
-
-        /**
-         * The operation this {@link TopicMessageFuture} is cancelled: {@link TopicMessageFuture#cancel()} was called
-         * before the operation was complete.
-         */
-        CANCELLED
     }
 
     /**

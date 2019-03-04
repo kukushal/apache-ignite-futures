@@ -44,7 +44,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="TopicMessage\MessageListener.cs" />
+    <Compile Include="TopicMessage\ServerSideHandler.cs" />
+    <Compile Include="TopicMessage\ClientSideHandler.cs" />
     <Compile Include="TopicMessage\ResultReq.cs" />
     <Compile Include="TopicMessage\ServiceInterceptor.cs" />
     <Compile Include="ServiceLocator.cs" />

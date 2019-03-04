@@ -7,7 +7,7 @@ namespace Apache.Ignite.Futures.TopicMessage
     /// <summary>
     /// Client-side processing of <see cref="TopicMessageFuture"/> messages.
     /// </summary>
-    internal class MessageListener : IMessageListener<object>
+    internal class ClientSideHandler : IMessageListener<object>
     {
         private readonly IMessaging igniteMsg;
 
@@ -18,7 +18,7 @@ namespace Apache.Ignite.Futures.TopicMessage
         /// <summary>
         /// Constructor.
         /// </summary>
-        public MessageListener(
+        public ClientSideHandler(
             IMessaging igniteMsg,
             dynamic futureResult,
             CancellationToken cancellation,

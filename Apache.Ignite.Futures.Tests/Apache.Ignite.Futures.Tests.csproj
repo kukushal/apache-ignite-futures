@@ -93,6 +93,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="..\build\libs\apache-ignite-futures-1.0-SNAPSHOT.jar">
+      <Link>apache-ignite-futures-1.0-SNAPSHOT.jar</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="..\src\test\resources\ignite-base.xml">
       <Link>ignite-base.xml</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
