@@ -5,7 +5,7 @@ using Apache.Ignite.Core.Services;
 
 namespace Apache.Ignite.Futures.Tests.TestObjects
 {
-    class CalculatorService : ICalculator, IService
+    public class CalculatorService : ICalculator, IService
     {
         public Task<int> sum(int n1, int n2, int duration, string failureMsg, CancellationToken ct)
         {

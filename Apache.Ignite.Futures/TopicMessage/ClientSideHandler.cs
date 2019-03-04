@@ -1,4 +1,5 @@
-﻿using Apache.Ignite.Core.Messaging;
+﻿using Apache.Ignite.Core;
+using Apache.Ignite.Core.Messaging;
 using System;
 using System.Threading;
 
@@ -19,12 +20,12 @@ namespace Apache.Ignite.Futures.TopicMessage
         /// Constructor.
         /// </summary>
         public ClientSideHandler(
-            IMessaging igniteMsg,
+            IIgnite ignite,
             dynamic futureResult,
             CancellationToken cancellation,
             TopicMessageFuture future)
         {
-            this.igniteMsg = igniteMsg;
+            igniteMsg = ignite.GetMessaging();
             this.futureResult = futureResult;
             this.future = future;
             this.cancellation = cancellation;
@@ -33,6 +34,8 @@ namespace Apache.Ignite.Futures.TopicMessage
                 SetResult(future.Result);
             else
             {
+                igniteMsg.LocalListen(this, future.Topic);
+
                 // Send cancellation request to the server if user cancels the async operation
                 cancellation.Register(() => igniteMsg.Send(new CancelReq(), future.Topic));
 

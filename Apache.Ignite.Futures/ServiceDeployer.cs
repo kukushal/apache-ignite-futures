@@ -1,4 +1,5 @@
 ﻿using Apache.Ignite.Core;
+using Apache.Ignite.Core.Resource;
 using Apache.Ignite.Core.Services;
 using Apache.Ignite.Futures.TopicMessage;
 using System;
@@ -47,7 +48,9 @@ namespace Apache.Ignite.Futures
         /// </summary>
         private IService ExtendForJava(IService service)
         {
-            throw new NotImplementedException();
+            var extType = CreateIgniteServiceType(service.GetType());
+
+            return (IService)Activator.CreateInstance(extType);
         }
 
         /// <summary>
@@ -68,10 +71,21 @@ namespace Apache.Ignite.Futures
             if (newType != null)
                 return newType;
 
+            // Define new type inhertiting original type
             var igniteSvcTypeBuilder = moduleBuilder.DefineType(
                 origType.Name,
                 origType.Attributes,
                 origType);
+
+            // Inject field "ignite" using InstanceResourceAttribute. We need ignite to implement new async methods.
+            var igniteResAttr = new CustomAttributeBuilder(
+                typeof(InstanceResourceAttribute).GetConstructor(new Type[0]),
+                new object[0]);
+
+            const string IgniteFieldName = "ignite";
+            igniteSvcTypeBuilder
+                .DefineField(IgniteFieldName, typeof(IIgnite), FieldAttributes.Private)
+                .SetCustomAttribute(igniteResAttr);
 
             // Async methods are the ones returning a Task
             var origAsyncMethods = origType.GetMethods(BindingFlags.Public | BindingFlags.Instance)
@@ -97,19 +111,44 @@ namespace Apache.Ignite.Futures
 
                 // 1. Create CancellationTokenSource using default constructor and store the created instance in the 
                 // local variables list at index 0.
-                javaMethodIL.Emit(OpCodes.Newobj, typeof(CancellationTokenSource).GetConstructors()[0]);
+                javaMethodIL.Emit(OpCodes.Newobj, typeof(CancellationTokenSource).GetConstructor(new Type[0]));
                 javaMethodIL.Emit(OpCodes.Stloc_0);
 
                 // 2. Call original .NET version of the method by appending the cancellation token parameter.
+                var tokenGetter = typeof(CancellationTokenSource)
+                    .GetProperty(nameof(CancellationTokenSource.Token))
+                    .GetGetMethod();
+
+                javaMethodIL.Emit(OpCodes.Ldarg_0); // "this"
+
                 foreach (var a in igniteSvcArgs)
                     javaMethodIL.Emit(OpCodes.Ldarg_S, a.Name);
 
                 javaMethodIL.Emit(OpCodes.Ldloc_0); // the CancellationTokenSource is at index 0
+                javaMethodIL.Emit(OpCodes.Callvirt, tokenGetter); // get CancellationToken and push it onto the stack
 
+                javaMethodIL.Emit(OpCodes.Call, origMethod); // call the original async method
+                javaMethodIL.Emit(OpCodes.Stloc_1); // store the returned Task locally at index 1 
 
-                // 3. Create ServiceSideHander for the .NET method's Task
+                // 3. Create ServerSideHandler<T>(ignite, task, cancellationToken) for the .NET method's Task
+                var svrHdlrType = typeof(ServerSideHandler<>)
+                    .MakeGenericType(origMethod.ReturnType.GetGenericArguments());
+
+                javaMethodIL.Emit(OpCodes.Ldarg_0); // "this"
+                javaMethodIL.Emit(OpCodes.Ldfld, IgniteFieldName); // injected Ignite resource
+                javaMethodIL.Emit(OpCodes.Ldloc_1); // task
+                javaMethodIL.Emit(OpCodes.Ldloc_0); // cancellation token
+                javaMethodIL.Emit(OpCodes.Newobj, svrHdlrType.GetConstructors()[0]); // create server side handler
+                javaMethodIL.Emit(OpCodes.Stloc_2); // store server side handler locally at index 2
 
                 // 4. Return ServiceSideHander's future
+                var futureGetter = svrHdlrType
+                    .GetProperty(nameof(ServerSideHandler<object>.Future))
+                    .GetGetMethod();
+
+                javaMethodIL.Emit(OpCodes.Ldloc_2); // server side handler
+                javaMethodIL.Emit(OpCodes.Callvirt, futureGetter); // get Future and push it onto the stack
+                javaMethodIL.Emit(OpCodes.Ret);
             }
 
             return igniteSvcTypeBuilder.CreateType();
