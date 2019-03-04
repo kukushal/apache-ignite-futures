@@ -19,11 +19,7 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
 
             var task = sum(n1, n2, duration, failureMsg, cancelSrc.Token);
 
-            var igniteMsg = ignite.GetMessaging();
-
-            var lsnr = new ServerSideHandler<int>(igniteMsg, task, cancelSrc);
-
-            igniteMsg.LocalListen(lsnr, lsnr.Future.Topic);
+            var lsnr = new ServerSideHandler<int>(ignite, task, cancelSrc);
 
             return lsnr.Future;
         }

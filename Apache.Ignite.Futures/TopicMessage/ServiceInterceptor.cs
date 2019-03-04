@@ -12,7 +12,9 @@ namespace Apache.Ignite.Futures.TopicMessage
     internal class ServiceInterceptor<T> : IInterceptor where T : class
     {
         private static readonly ModuleBuilder moduleBuilder = AppDomain.CurrentDomain
-            .DefineDynamicAssembly(new AssemblyName("Apache.Ignite.Futures.Dynamic"), AssemblyBuilderAccess.Run)
+            .DefineDynamicAssembly(
+            new AssemblyName("Apache.Ignite.Futures.TopicMessage.ServiceInterceptor.Dynamic"),
+            AssemblyBuilderAccess.Run)
             .DefineDynamicModule("IgniteServiceTypes");
 
         private readonly IIgnite ignite;
@@ -42,13 +44,13 @@ namespace Apache.Ignite.Futures.TopicMessage
 
             var futureResultType = typeof(TaskCompletionSource<>)
                 .MakeGenericType(invocation.Method.ReturnType.GetGenericArguments());
-            
+
             dynamic futureResult = Activator.CreateInstance(futureResultType);
 
             var igniteMsg = ignite.GetMessaging();
 
             igniteMsg.LocalListen(
-                new ClientSideHandler(igniteMsg, futureResult, cancellation, javaFuture), 
+                new ClientSideHandler(igniteMsg, futureResult, cancellation, javaFuture),
                 javaFuture.Topic);
 
             invocation.ReturnValue = futureResult.Task;
@@ -59,8 +61,6 @@ namespace Apache.Ignite.Futures.TopicMessage
         /// <list type="bullet">
         /// <item>Ignite.NET async methods are the methods having <see cref="Task"/> as a return type.</item>
         /// <item>Ignite Java async methods return <see cref="TopicMessageFuture"/></item>
-        /// <item>Ignite.NET and Ignite Java methods have same names bu different naming convention: 
-        /// UpperCamelCase and lowerCamelCase correspondigly</item>
         /// <item>Ignite Java async methods have same arguments as Ignite.NET async methods except the 
         /// last <see cref="CancellationToken"/> argument</item>
         /// </list>

@@ -1,4 +1,5 @@
-﻿using Apache.Ignite.Core.Messaging;
+﻿using Apache.Ignite.Core;
+using Apache.Ignite.Core.Messaging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,9 +20,9 @@ namespace Apache.Ignite.Futures.TopicMessage
         /// <summary>
         /// Constructor.
         /// </summary>
-        public ServerSideHandler(IMessaging igniteMsg, Task<T> task, CancellationTokenSource cancellation)
+        public ServerSideHandler(IIgnite ignite, Task<T> task, CancellationTokenSource cancellation)
         {
-            this.igniteMsg = igniteMsg;
+            igniteMsg = ignite.GetMessaging();
             this.task = task;
             this.cancellation = cancellation;
 
@@ -39,6 +40,7 @@ namespace Apache.Ignite.Futures.TopicMessage
             if (state == State.Done)
                 Future.Result = ToResult(task);
             else
+            {
                 task.ContinueWith(t =>
                 {
                     try
@@ -50,6 +52,9 @@ namespace Apache.Ignite.Futures.TopicMessage
                         // Ignore: the cancellation was already processed in the CancelReq handler.
                     }
                 });
+
+                igniteMsg.LocalListen(this, Future.Topic);
+            }
         }
 
         public TopicMessageFuture Future { get; private set; }
