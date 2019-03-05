@@ -17,30 +17,49 @@ namespace Apache.Ignite.Futures.TopicMessage
             AssemblyBuilderAccess.Run)
             .DefineDynamicModule("IgniteServiceTypes");
 
+        private static readonly Lazy<Type> asyncJavaSvcType = new Lazy<Type>(() => CreateIgniteAsyncJavaServiceType());
+
         private readonly IIgnite ignite;
         private readonly string name;
-        private readonly Type javaSvcType;
+
+        private readonly Lazy<object> asyncSvcProxy;
+        private readonly Lazy<T> dfltSvcProxy;
 
         public ServiceInterceptor(IIgnite ignite, string name)
         {
             this.ignite = ignite;
             this.name = name;
-            javaSvcType = CreateIgniteServiceType();
+
+            asyncSvcProxy = new Lazy<object>(GetAsyncServiceProxy);
+            dfltSvcProxy = new Lazy<T>(() => ignite.GetServices().GetServiceProxy<T>(name, true));
         }
 
         public void Intercept(IInvocation invocation)
         {
-            var javaSvcProxy = GetServiceProxy();
+            // We proxy only async method. Async methods are the methods returning a Task and having CancellationToken
+            // as the last parameter.
+            if (typeof(Task).IsAssignableFrom(invocation.Method.ReturnType) &&
+                invocation.Arguments.Length > 0 &&
+                invocation.Arguments[invocation.Arguments.Length - 1] is CancellationToken)
+                CallAsyncJavaMethod(invocation);
+            else
+                invocation.ReturnValue = invocation.Method.Invoke(dfltSvcProxy.Value, invocation.Arguments);
+        }
 
+        /// <summary>
+        /// Convert .NET-style async invocation to Java style and invoke the new method.
+        /// </summary>
+        private void CallAsyncJavaMethod(IInvocation invocation)
+        {
             // Remove cancellation token from the Java service args
             CancellationToken cancellation = (CancellationToken)invocation.Arguments[invocation.Arguments.Length - 1];
 
             object[] javaSvcArgs = new object[invocation.Arguments.Length - 1];
             Array.Copy(invocation.Arguments, javaSvcArgs, invocation.Arguments.Length - 1);
 
-            var javaMethod = javaSvcType.GetTypeInfo().GetDeclaredMethod(invocation.Method.Name);
+            var javaMethod = asyncJavaSvcType.Value.GetTypeInfo().GetDeclaredMethod(invocation.Method.Name);
 
-            var javaFuture = (TopicMessageFuture)javaMethod.Invoke(javaSvcProxy, javaSvcArgs);
+            var javaFuture = (TopicMessageFuture)javaMethod.Invoke(asyncSvcProxy.Value, javaSvcArgs);
 
             var futureResultType = typeof(TaskCompletionSource<>)
                 .MakeGenericType(invocation.Method.ReturnType.GetGenericArguments());
@@ -62,17 +81,19 @@ namespace Apache.Ignite.Futures.TopicMessage
         /// </list>
         /// </summary>
         /// <returns>Ignite Java async service interface type</returns>
-        private static Type CreateIgniteServiceType()
+        private static Type CreateIgniteAsyncJavaServiceType()
         {
             Type origType = typeof(T);
 
-            var newType = moduleBuilder.GetType(origType.FullName);
+            var newTypeName = $"{origType.FullName}AsyncJava";
+
+            var newType = moduleBuilder.GetType(newTypeName);
 
             if (newType != null)
                 return newType;
 
             var igniteSvcTypeBuilder = moduleBuilder.DefineType(
-                origType.FullName,
+                newTypeName,
                 origType.Attributes,
                 null);
 
@@ -99,15 +120,15 @@ namespace Apache.Ignite.Futures.TopicMessage
             return igniteSvcTypeBuilder.CreateType();
         }
 
-        /// <returns>Ignite service proxy for the Java service type.</returns>
-        private object GetServiceProxy()
+        /// <returns>Ignite service proxy for async Java service methods.</returns>
+        private object GetAsyncServiceProxy()
         {
             var igniteSvcs = ignite.GetServices();
 
             var getProxyMethod = igniteSvcs.GetType().GetMethods()
                 .Where(m => m.Name.Equals("GetServiceProxy"))
                 .Last()
-                .MakeGenericMethod(new[] { javaSvcType });
+                .MakeGenericMethod(new[] { asyncJavaSvcType.Value });
 
             return getProxyMethod.Invoke(igniteSvcs, new object[] { name, true });
         }

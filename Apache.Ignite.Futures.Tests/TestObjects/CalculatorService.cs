@@ -7,8 +7,11 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
 {
     public class CalculatorService : ICalculator, IService
     {
+        private bool cancelled = false;
+
         public Task<int> sum(int n1, int n2, int duration, string failureMsg, CancellationToken ct)
         {
+            cancelled = true;
             Exception failure = failureMsg == null ? null : new Exception(failureMsg);
 
             if (duration > 0)
@@ -24,6 +27,8 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
                         else
                             Thread.Sleep(duration);
 
+                        cancelled = ct.IsCancellationRequested;
+
                         ct.ThrowIfCancellationRequested();
 
                         if (failure != null)
@@ -33,6 +38,11 @@ namespace Apache.Ignite.Futures.Tests.TestObjects
                     });
 
             return failure == null ? Task.FromResult<int>(n1 + n2) : Task.FromException<int>(failure);
+        }
+
+        public bool wasCancelled()
+        {
+            return cancelled;
         }
 
         public void Cancel(IServiceContext context)

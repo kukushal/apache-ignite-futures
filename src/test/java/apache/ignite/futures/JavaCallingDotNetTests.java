@@ -100,6 +100,7 @@ public class JavaCallingDotNetTests {
 
             assertTrue(isCancelled);
             assertTrue(calcFut.isCancelled());
+            assertTrue(serviceProxy(ignite).wasCancelled());
         }
     }
 

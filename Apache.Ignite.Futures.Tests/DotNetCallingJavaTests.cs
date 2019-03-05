@@ -125,6 +125,8 @@ namespace Apache.Ignite.Futures.Tests
                     }
                     catch (AggregateException e)
                     {
+                        Assert.IsTrue(calc.wasCancelled());
+
                         throw e.InnerException; // must be expected TaskCanceledException
                     }
                 }
