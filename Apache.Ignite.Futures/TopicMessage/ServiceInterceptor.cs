@@ -66,13 +66,13 @@ namespace Apache.Ignite.Futures.TopicMessage
         {
             Type origType = typeof(T);
 
-            var newType = moduleBuilder.GetType(origType.Name);
+            var newType = moduleBuilder.GetType(origType.FullName);
 
             if (newType != null)
                 return newType;
 
             var igniteSvcTypeBuilder = moduleBuilder.DefineType(
-                origType.Name,
+                origType.FullName,
                 origType.Attributes,
                 null);
 

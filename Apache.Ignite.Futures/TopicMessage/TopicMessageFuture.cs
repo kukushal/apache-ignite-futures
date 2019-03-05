@@ -3,6 +3,8 @@
     /// <summary>
     /// Ignite-Java async service calls return <see cref="TopicMessageFuture"/>. Keep the property names in sync with 
     /// the Java counterpart.
+    /// <para/>
+    /// Keep it public: the class is used by a custom service dynamically generated in <see cref="ServiceDeployer"/>.
     /// </summary>
     public class TopicMessageFuture
     {

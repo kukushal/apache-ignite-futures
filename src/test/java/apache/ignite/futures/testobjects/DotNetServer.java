@@ -13,7 +13,7 @@ import java.nio.file.Paths;
  */
 public class DotNetServer implements AutoCloseable {
     /** Ignite output after successful start. */
-    private static final String SUCCESS_OUTPUT = "Ignite node started OK";
+    private static final String SUCCESS_OUTPUT = ">>> Ignite started OK";
 
     /** Process. */
     private Process proc;
@@ -45,6 +45,9 @@ public class DotNetServer implements AutoCloseable {
             !line.contains(SUCCESS_OUTPUT) &&
             output.lastIndexOf(SUCCESS_OUTPUT) < 0)
             output.append(line);
+
+        // TODO: might be Ignite bug - the service is not immediately visible. Sleep as a work-around.
+        Thread.sleep(1_000);
     }
 
     /** {@inheritDoc} */

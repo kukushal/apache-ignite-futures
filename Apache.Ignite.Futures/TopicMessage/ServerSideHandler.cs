@@ -8,6 +8,8 @@ namespace Apache.Ignite.Futures.TopicMessage
 {
     /// <summary>
     /// Server-side processing of <see cref="TopicMessageFuture"/> messages.
+    /// <para/>
+    /// Keep it public: the class is used by a custom service dynamically generated in <see cref="ServiceDeployer"/>.
     /// </summary>
     public class ServerSideHandler<T> : IMessageListener<object>
     {

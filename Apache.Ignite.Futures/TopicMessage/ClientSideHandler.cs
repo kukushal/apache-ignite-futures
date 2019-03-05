@@ -13,8 +13,6 @@ namespace Apache.Ignite.Futures.TopicMessage
         private readonly IMessaging igniteMsg;
 
         private readonly dynamic futureResult;
-        private readonly TopicMessageFuture future;
-        private readonly CancellationToken cancellation;
 
         /// <summary>
         /// Constructor.
@@ -27,8 +25,6 @@ namespace Apache.Ignite.Futures.TopicMessage
         {
             igniteMsg = ignite.GetMessaging();
             this.futureResult = futureResult;
-            this.future = future;
-            this.cancellation = cancellation;
 
             if (future.State == State.Done)
                 SetResult(future.Result);
